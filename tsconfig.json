@@ -1,11 +1,23 @@
 {
-    "compilerOptions": {
-      "outDir": "./dist/",
-      "noImplicitAny": true,
-      "module": "es6",
-      "target": "es5",
-      "jsx": "react",
-      "allowJs": true,
-      "moduleResolution": "node"
-    }
-  }
+	"compilerOptions": {
+		"allowJs": true,
+		"module": "es6",
+		"target": "es2020",
+		"jsx": "preserve",
+		"strictFunctionTypes": true,
+		"sourceMap": true,
+		"outDir": "./build/",
+		"strictNullChecks": true,
+		"moduleResolution": "node",
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
+	},
+	"include": [
+		"src",
+	],
+	"exclude": [
+		"node_modules",
+		"**/node_modules/*"
+	],
+ 
+}

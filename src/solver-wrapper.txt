@@ -1,0 +1,76 @@
+const webpack = require('webpack'); //to access built-in plugins
+
+module.exports = {
+    "mode": "development",
+    "plugins": [
+        new webpack.IgnorePlugin(/(fs|child_process)/),
+    ]
+}
+
+const solver = require("javascript-lp-solver");
+
+export interface SolverTarget {
+    name: string;
+    type: string;
+}
+
+export interface SolverConstraint {
+    type: string;
+    value: number;
+}
+export type SolverConstraints = Map<string, Array<SolverConstraint>>;
+
+
+export type SolverRelation = Map<string, number>;
+export type SolverRelations = Map<string, SolverRelation>;
+
+export interface SolverResult {
+    feasible: Boolean;
+    bounded: Boolean;
+    result: number;
+    values: Map<string, number>
+}
+
+export function lpSolve(target: SolverTarget, constraints: SolverConstraints, relations: SolverRelations): SolverResult {
+    
+    let model = {
+        "optimize": target.name,
+        "opType": target.type,
+        "constraints": {},
+        "variables": {}
+    };
+    
+    constraints.forEach((val, key) => {
+        model.constraints[key] = {};
+        val.forEach((entry) => {
+            model.constraints[key][entry.type] = entry.value;
+        })
+    });
+    
+    relations.forEach((val, key) => {
+        model.variables[key] = {};
+        val.forEach((other, cnt) => {
+            model.variables[key][other] = cnt;
+        })
+    });
+    
+    let sol = solver.solve(model);
+    
+    let res: SolverResult = {
+        feasible: Boolean(sol.feasible),
+        bounded: Boolean(sol.bounded),
+        result: Number(sol.result),
+
+        values: new Map<string, number>()
+    };
+
+    for (const [item_key, item] of Object.entries(sol)) {
+        if (item_key == "feasible") continue;
+        if (item_key == "result") continue;
+        if (item_key == "bounded") continue;
+    
+        res.values.set(item_key, Number(item));
+    }
+
+    return res;
+}
