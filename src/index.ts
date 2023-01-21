@@ -3,7 +3,7 @@ import { tally_recipe, print_recipe } from "./helper";
 import { FactoryTab } from "./factory_tab";
 import { createElem } from "./utils";
 import { solve_factory } from "./solver";
-import { FactoryHub, FactoryMachine, FactoryNodeID, FactorySink, FactorySource, FlowLine, NetIO } from "./factory_node";
+import { FactoryHub, FactoryMachine, FactoryNodeID, FactorySink, FactorySource, FlowLine } from "./factory_node";
 
 //console.log(model);
 
@@ -100,6 +100,7 @@ window.addEventListener("load", () => {
 
             console.log(print_recipe(recipe_key, recipe_cnt));
 
+            /*
             let net_in: NetIO = new Map<string, number>();
             let net_out: NetIO = new Map<string, number>();
 
@@ -109,12 +110,11 @@ window.addEventListener("load", () => {
 
             FACTORY_DATA.productionRecipes[recipe_key].products.forEach((product) => {
                 net_out.set(product.itemClass, product.quantity * recipe_cnt);
-            });
+            });*/
 
             if(recipe_cnt > 1e-6) {
                 let node = new FactoryMachine(
                     optimal_factory,
-                    net_in, net_out,
                     0, 0,
                     recipe_key,
                     recipe_cnt

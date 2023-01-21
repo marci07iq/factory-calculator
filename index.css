@@ -34,6 +34,10 @@ body {
     outline: 1px solid black;
 }
 
+.factory-node-selected {
+    outline: 3px solid lightgray;
+}
+
 .factory-node:hover {
     outline: 3px solid white;
 }

@@ -57,16 +57,16 @@ export class FlowLine {
     }
 };
 
-export type NetIO = Map<string, number>;
+//export type NetIO = Map<string, number>;
 
 export type ProcessingFlows = Array<FlowLine>;
 
 export type ProcessingIO = {
-    total: NetIO;
+    //total: NetIO;
     flows: ProcessingFlows;
 }
 
-function sum_io(parts: Array<NetIO>): NetIO {
+/*function sum_io(parts: Array<NetIO>): NetIO {
     let res: NetIO = new Map<string, number>();
 
     parts.forEach((part) => {
@@ -89,7 +89,7 @@ function mul_io(io: NetIO, num: number): NetIO {
     });
 
     return res;
-}
+}*/
 
 function sum_flow(parts: Array<Array<FlowLine>>): Array<FlowLine> {
     let res: Array<FlowLine> = new Array<FlowLine>();
@@ -148,14 +148,12 @@ export abstract class FactoryNode {
     elem_header: HTMLDivElement;
     elem_content: HTMLDivElement;
 
-    constructor(host: FactoryTab, input: NetIO, output: NetIO, x: number, y: number) {
+    constructor(host: FactoryTab, x: number, y: number) {
         this.host = host;
         this.in = {
-            total: input,
             flows: []
         };
         this.out = {
-            total: output,
             flows: []
         };
 
@@ -171,31 +169,12 @@ export abstract class FactoryNode {
         ) as HTMLDivElement;
         this.set_position(x, y);
 
-        let last_x: number = NaN;
-        let last_y: number = NaN;
-
-        let onmove_fn = (ev: MouseEvent) => {
-            ev.preventDefault();
-            this.set_position(this.x + (ev.clientX - last_x) / this.host.zoom, this.y + (ev.clientY - last_y) / this.host.zoom);
-            last_x = ev.clientX;
-            last_y = ev.clientY;
-            ev.stopPropagation();
-        }
-
-        let onup_fn = () => {
-            // stop moving when mouse button is released:
-            document.removeEventListener("mouseup", onup_fn);
-            document.removeEventListener("mousemove", onmove_fn);
-        }
-
         this.elem_header.onmousedown = (ev: MouseEvent) => {
             if (ev.target == this.elem_header) {
                 if (ev.button == 0) {
                     ev.preventDefault();
-                    document.addEventListener("mouseup", onup_fn);
-                    document.addEventListener("mousemove", onmove_fn);
-                    last_x = ev.clientX;
-                    last_y = ev.clientY;
+                    this.host.add_selected_node(this, ev.ctrlKey);
+                    this.host.drag_mode = "node";
                     ev.stopPropagation();
                 }
             }
@@ -283,9 +262,7 @@ export class FactorySource extends FactoryNode {
     count: number;
 
     constructor(host: FactoryTab, x: number, y: number, resource: string, count: number) {
-        super(host, new Map<string, number>([[
-            resource, count
-        ]]), new Map<string, number>(), x, y);
+        super(host, x, y);
 
         this.resource = resource;
         this.count = count;
@@ -330,9 +307,7 @@ export class FactorySink extends FactoryNode {
     count: number;
 
     constructor(host: FactoryTab, x: number, y: number, resource: string, count: number) {
-        super(host, new Map<string, number>(), new Map<string, number>([[
-            resource, count
-        ]]), x, y);
+        super(host, x, y);
 
         this.resource = resource;
         this.count = count;
@@ -377,11 +352,7 @@ export class FactoryHub extends FactoryNode {
     count: number;
 
     constructor(host: FactoryTab, x: number, y: number, resource: string, count: number) {
-        super(host, new Map<string, number>([[
-            resource, count
-        ]]), new Map<string, number>([[
-            resource, count
-        ]]), x, y);
+        super(host, x, y);
 
         this.resource = resource;
         this.count = count;
@@ -442,8 +413,8 @@ export class FactoryMachine extends FactoryNode {
     recipe: string;
     recipe_count: number;
 
-    constructor(host: FactoryTab, input: NetIO, output: NetIO, x: number, y: number, recipe: string, recipe_count: number) {
-        super(host, input, output, x, y);
+    constructor(host: FactoryTab, x: number, y: number, recipe: string, recipe_count: number) {
+        super(host, x, y);
 
         this.recipe = recipe;
         this.recipe_count = recipe_count;
@@ -472,8 +443,6 @@ export class FactoryMachine extends FactoryNode {
         parts.forEach((part) => {
             let new_node = new FactoryMachine(
                 this.host,
-                mul_io(this.in.total, part / sum),
-                mul_io(this.out.total, part / sum),
                 this.x,
                 this.y,
                 this.recipe,
@@ -492,8 +461,6 @@ export class FactoryComposite extends FactoryNode {
     constructor(host: FactoryTab, x: number, y: number, name: string, components: Array<FactoryNode>) {
         super(
             host,
-            sum_io(components.map(comp => comp.in.total)),
-            sum_io(components.map(comp => comp.out.total)),
             x,
             y
         );
