@@ -1,3 +1,6 @@
 node_modules*
 package-lock.json
-Docs.json
+src/Docs.json
+src/data.json
+build
+build/*
