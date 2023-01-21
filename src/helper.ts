@@ -6,9 +6,7 @@ export function print_recipe(recipe_key: string, multi: number = 1) {
     let outputs: Array<any> = [];
 
     FACTORY_DATA.productionRecipes[recipe_key].ingredients.forEach((ingredient) => {
-        if (!ingredient.itemClass.startsWith("SN_")) {
-            inputs.push(ingredient.quantity * multi + " * " + FACTORY_DATA.items[ingredient.itemClass].name);
-        }
+        inputs.push(ingredient.quantity * multi + " * " + FACTORY_DATA.items[ingredient.itemClass].name);
     });
 
     FACTORY_DATA.productionRecipes[recipe_key].products.forEach((product) => {
@@ -24,12 +22,10 @@ export function print_recipe(recipe_key: string, multi: number = 1) {
 
 export function tally_recipe(recipe_key: string, tally: Map<string, Array<number>>, multi: number = 1) {
     FACTORY_DATA.productionRecipes[recipe_key].ingredients.forEach((ingredient) => {
-        if (!ingredient.itemClass.startsWith("SN_")) {
-            if (!tally.has(ingredient.itemClass)) {
-                tally.set(ingredient.itemClass, [0, 0]);
-            }
-            tally.get(ingredient.itemClass)![0] += ingredient.quantity * multi;
+        if (!tally.has(ingredient.itemClass)) {
+            tally.set(ingredient.itemClass, [0, 0]);
         }
+        tally.get(ingredient.itemClass)![0] += ingredient.quantity * multi;
     });
 
     FACTORY_DATA.productionRecipes[recipe_key].products.forEach((product) => {
@@ -38,4 +34,8 @@ export function tally_recipe(recipe_key: string, tally: Map<string, Array<number
         }
         tally.get(product.itemClass)![1] += product.quantity * multi;
     });
+}
+
+export function num_to_str(num: number, digits: number = 2) {
+    return num.toFixed(digits);
 }

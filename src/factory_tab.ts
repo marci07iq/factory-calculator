@@ -1,8 +1,12 @@
-import { FactoryNode, ProcessingNode } from "./factory_node";
+import { FactoryComposite, FactoryNode, FactoryNodeID, FlowLine } from "./factory_node";
 import { createElem } from "./utils";
 
 export class FactoryTab {
-    elems: Array<ProcessingNode>;
+    elems: Map<FactoryNodeID, FactoryNode>;
+    elem_id: FactoryNodeID = 1;
+
+    flows: Map<FactoryNodeID, FactoryNode>;
+    flows_id: FactoryNodeID = 1;
 
     htmls: {
         root?: HTMLDivElement,
@@ -60,8 +64,6 @@ export class FactoryTab {
             let viewportX = (ev.clientX - rect.left);
             let viewportY = (ev.clientY - rect.top);
             
-            console.log(viewportX, viewportY);
-
             let delta_zoom = Math.exp(-ev.deltaY * 0.001);
             let new_zoom = Math.min(Math.max(0.1, this.zoom * delta_zoom), 1);
             delta_zoom = new_zoom / this.zoom;
@@ -74,9 +76,7 @@ export class FactoryTab {
 
         this.reset_css();
 
-        this.elems = [];
-        this.elems.push(new FactoryNode(this, 50, 50, "asd", []));
-        this.htmls.canvas.appendChild(this.elems[0].elem);
+        this.elems = new Map<FactoryNodeID, FactoryNode>();
     }
 
     reset_css() {
@@ -87,5 +87,34 @@ export class FactoryTab {
 
         this.htmls.viewport!.style.backgroundSize = `${scale*5}px ${scale*5}px, ${scale*5}px ${scale*5}px, ${scale}px ${scale}px, ${scale}px ${scale}px`;
         this.htmls.viewport!.style.backgroundPosition = `${this.x - 1}px ${this.y - 1}px, ${this.x - 1}px ${this.y - 1}px, ${this.x - 0.5}px ${this.y - 0.5}px, ${this.x - 0.5}px ${this.y - 0.5}px`;
+    }
+
+    add_node(node: FactoryNode): FactoryNodeID {
+        let new_id = this.elem_id++;
+        node.id = new_id;
+        this.elems.set(new_id, node);
+        this.htmls.canvas!.appendChild(node.elem);
+        return new_id;
+    }
+    remove_flow(flow: FlowLine) {
+        this.elems.get(flow.from)!.out.flows = this.elems.get(flow.from)!.out.flows.filter(tflow => tflow != flow);
+        this.elems.get(flow.to)!.in.flows = this.elems.get(flow.to)!.in.flows.filter(tflow => tflow != flow);
+        this.htmls.canvas!.removeChild(flow.line);
+    }
+    remove_node(id: FactoryNodeID) {
+        let node = this.elems.get(id)!;
+        //Remove from canvas
+        this.htmls.canvas?.removeChild(node.elem);
+        //Remove flows
+        node.in.flows.forEach((flow) => {
+            this.remove_flow(flow);
+        });
+        if(node.in.flows.length != 0) throw new Error("Failed to wipe");
+        node.out.flows.forEach((flow) => {
+            this.remove_flow(flow);
+        });
+        if(node.out.flows.length != 0) throw new Error("Failed to wipe");
+        //Remove from element map
+        this.elems.delete(id);
     }
 }

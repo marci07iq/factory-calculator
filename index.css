@@ -25,6 +25,12 @@ body {
     position: absolute;
     border-radius: 5px;
     overflow: hidden;
+    white-space: nowrap;
+}
+
+.factory-flow {
+    position: absolute;
+    outline: 1px solid black;
 }
 
 .factory-node:hover {
@@ -32,6 +38,7 @@ body {
 }
 
 .factory-node-header {
+    cursor: grab;
     width: 100%;
     height: 20px;
     background-color: #d32608;
