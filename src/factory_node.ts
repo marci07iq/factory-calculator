@@ -171,10 +171,15 @@ export abstract class FactoryNode {
         ) as HTMLDivElement;
         this.set_position(x, y);
 
-        let onmove_fn = (e: MouseEvent) => {
-            e.preventDefault();
-            this.set_position(this.x + e.movementX / this.host.zoom, this.y + e.movementY / this.host.zoom);
-            e.stopPropagation();
+        let last_x: number = NaN;
+        let last_y: number = NaN;
+
+        let onmove_fn = (ev: MouseEvent) => {
+            ev.preventDefault();
+            this.set_position(this.x + (ev.clientX - last_x) / this.host.zoom, this.y + (ev.clientY - last_y) / this.host.zoom);
+            last_x = ev.clientX;
+            last_y = ev.clientY;
+            ev.stopPropagation();
         }
 
         let onup_fn = () => {
@@ -183,13 +188,15 @@ export abstract class FactoryNode {
             document.removeEventListener("mousemove", onmove_fn);
         }
 
-        this.elem_header.onmousedown = (e: MouseEvent) => {
-            if (e.target == this.elem_header) {
-                if (e.button == 0) {
-                    e.preventDefault();
+        this.elem_header.onmousedown = (ev: MouseEvent) => {
+            if (ev.target == this.elem_header) {
+                if (ev.button == 0) {
+                    ev.preventDefault();
                     document.addEventListener("mouseup", onup_fn);
                     document.addEventListener("mousemove", onmove_fn);
-                    e.stopPropagation();
+                    last_x = ev.clientX;
+                    last_y = ev.clientY;
+                    ev.stopPropagation();
                 }
             }
         }

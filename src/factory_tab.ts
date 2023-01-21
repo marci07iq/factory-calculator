@@ -42,10 +42,15 @@ export class FactoryTab {
         this.zoom = 1;
 
         let dragging = false;
+        let last_x: number = NaN;
+        let last_y: number = NaN;
+
         this.htmls.viewport.onmousedown = (ev) => {
             if (ev.target == this.htmls.viewport || ev.target == this.htmls.canvas || ev.target == this.htmls.canvas_lines || ev.target == this.htmls.canvas_nodes) {
                 if(ev.button == 0) {
                     dragging = true;
+                    last_x = ev.clientX;
+                    last_y = ev.clientY;
                     ev.stopPropagation();
                 }
             }
@@ -56,8 +61,10 @@ export class FactoryTab {
 
         document.addEventListener("mousemove", (ev) => {
             if(dragging) {
-                this.x += ev.movementX;
-                this.y += ev.movementY;
+                this.x += (ev.clientX - last_x);
+                this.y += (ev.clientY - last_y);
+                last_x = ev.clientX;
+                last_y = ev.clientY;
                 this.reset_css();
                 ev.stopPropagation();
             }

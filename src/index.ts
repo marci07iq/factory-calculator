@@ -209,20 +209,29 @@ window.addEventListener("load", () => {
             if (!work_done) {
                 //Find best node with most ins
                 let max_y_cnt = 0;
-                let max_y_id = -1;
+                let min_y_deficit = Infinity;
+                let best_y_id = -1;
                 for (let [key, val] of optimal_factory.elems) {
                     if (!layers.has(key)) {
                         let y_cnt = 0;
+                        let y_deficit = 0;
 
                         val.in.flows.forEach((flow) => {
                             if (layers.has(flow.from)) {
                                 ++y_cnt;
+                                --y_deficit;
                             }
                         });
 
-                        if (y_cnt > max_y_cnt) {
-                            max_y_id = val.id;
+                        if (y_deficit < min_y_deficit) {
+                            best_y_id = val.id;
+                            min_y_deficit = y_deficit;
                             max_y_cnt = y_cnt;
+                        } else if (y_deficit == min_y_deficit) {
+                            if (y_cnt > max_y_cnt) {
+                                best_y_id = val.id;
+                                max_y_cnt = y_cnt;
+                            }
                         }
                     }
                 }
@@ -231,22 +240,19 @@ window.addEventListener("load", () => {
                 let y_sum = 0;
                 let y_cnt = 0;
 
-                optimal_factory.elems.get(max_y_id)!.in.flows.forEach((flow) => {
+                optimal_factory.elems.get(best_y_id)!.in.flows.forEach((flow) => {
                     if (layers.has(flow.from)) {
                         max = Math.max(max, layers.get(flow.from)!.at(0)!);
                         ++y_cnt;
                         y_sum += layers.get(flow.from)!.at(1)!;
                     }
                 });
-                if (y_cnt > 0) {
-                    console.log(`Premature accept`, optimal_factory.elems.get(max_y_id)!);
-                    let new_y = y_sum / y_cnt;
-                    if (isNaN(new_y)) {
-                        console.log(optimal_factory.elems.get(max_y_id)!);
-                    }
-                    layers.set(max_y_id, [max + 1, new_y]);
-                    work_done = true;
-                }
+                
+                console.log(`Premature accept`, y_cnt, optimal_factory.elems.get(best_y_id)!);
+                let new_y = (y_cnt != 0) ? (y_sum / y_cnt) : 0;
+                layers.set(best_y_id, [max + 1, new_y]);
+                work_done = true;
+            
             }
         }
 
