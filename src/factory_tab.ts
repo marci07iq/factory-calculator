@@ -12,6 +12,8 @@ export class FactoryTab {
         root?: HTMLDivElement,
         viewport?: HTMLDivElement,
         canvas?: HTMLDivElement,
+        canvas_lines?: HTMLDivElement,
+        canvas_nodes?: HTMLDivElement,
 
         context_menu?: HTMLDivElement,
 
@@ -26,7 +28,10 @@ export class FactoryTab {
 
         this.htmls.root = createElem("div", ["factory-tab"], undefined, undefined, [
             this.htmls.viewport = createElem("div", ["factory-viewport"], undefined, undefined, [
-                    this.htmls.canvas = createElem("div", ["factory-canvas"]) as HTMLDivElement
+                    this.htmls.canvas = createElem("div", ["factory-canvas"], undefined, undefined, [
+                        this.htmls.canvas_lines = createElem("div", ["factory-canvas-lines"]) as HTMLDivElement,
+                        this.htmls.canvas_nodes = createElem("div", ["factory-canvas-nodes"]) as HTMLDivElement
+                    ]) as HTMLDivElement
                 ]) as HTMLDivElement,
             this.htmls.context_menu = createElem("div", ["factory-tab-context"]) as HTMLDivElement,
             this.htmls.sidebar = createElem("div", ["factory-tab-sidebar"]) as HTMLDivElement
@@ -38,7 +43,7 @@ export class FactoryTab {
 
         let dragging = false;
         this.htmls.viewport.onmousedown = (ev) => {
-            if (ev.target == this.htmls.viewport || ev.target == this.htmls.canvas) {
+            if (ev.target == this.htmls.viewport || ev.target == this.htmls.canvas || ev.target == this.htmls.canvas_lines || ev.target == this.htmls.canvas_nodes) {
                 if(ev.button == 0) {
                     dragging = true;
                     ev.stopPropagation();
@@ -93,18 +98,18 @@ export class FactoryTab {
         let new_id = this.elem_id++;
         node.id = new_id;
         this.elems.set(new_id, node);
-        this.htmls.canvas!.appendChild(node.elem);
+        this.htmls.canvas_nodes!.appendChild(node.elem);
         return new_id;
     }
     remove_flow(flow: FlowLine) {
         this.elems.get(flow.from)!.out.flows = this.elems.get(flow.from)!.out.flows.filter(tflow => tflow != flow);
         this.elems.get(flow.to)!.in.flows = this.elems.get(flow.to)!.in.flows.filter(tflow => tflow != flow);
-        this.htmls.canvas!.removeChild(flow.line);
+        this.htmls.canvas_lines!.removeChild(flow.line);
     }
     remove_node(id: FactoryNodeID) {
         let node = this.elems.get(id)!;
         //Remove from canvas
-        this.htmls.canvas?.removeChild(node.elem);
+        this.htmls.canvas_nodes!.removeChild(node.elem);
         //Remove flows
         node.in.flows.forEach((flow) => {
             this.remove_flow(flow);

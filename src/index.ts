@@ -57,35 +57,38 @@ window.addEventListener("load", () => {
         //Create hub nodes
         tally.forEach((item_cnt, item_key) => {
             let delta = item_cnt[1] - item_cnt[0];
+
+            //Hub node
+            let hub_node = new FactoryHub(
+                optimal_factory,
+                0, 0,
+                item_key, (item_cnt[1] + item_cnt[0]) / 2
+            );
+            hub_nodes.set(item_key, hub_node.id);
+
             if (Math.abs(delta) > 1e-6) {
                 console.log(`${FACTORY_DATA.items[item_key].name}: used ${item_cnt[0]}, made ${item_cnt[1]}, delta ${delta}`);
 
                 //Sourced
-                if (delta < 0) {
+                if (delta < -1e-6) {
                     let node = new FactorySource(
                         optimal_factory,
-                        NaN, NaN,
+                        0, 0,
                         item_key, -delta
                     );
-                    hub_nodes.set(item_key, node.id);
+                    new FlowLine(optimal_factory, item_key, -delta, node.id, hub_node.id);
                     //Sunk
-                } else {
+                }
+                if (delta > 1e-6) {
                     let node = new FactorySink(
                         optimal_factory,
-                        NaN, NaN,
+                        0, 0,
                         item_key, delta
                     );
-                    hub_nodes.set(item_key, node.id);
+                    new FlowLine(optimal_factory, item_key, delta, hub_node.id, node.id);
                 }
             } else {
                 console.log(`${FACTORY_DATA.items[item_key].name}: used ${item_cnt[0]}, made ${item_cnt[1]}`);
-
-                let node = new FactoryHub(
-                    optimal_factory,
-                    NaN, NaN,
-                    item_key, (item_cnt[1] + item_cnt[0]) / 2
-                );
-                hub_nodes.set(item_key, node.id);
             }
         });
 
@@ -108,21 +111,27 @@ window.addEventListener("load", () => {
                 net_out.set(product.itemClass, product.quantity * recipe_cnt);
             });
 
-            let node = new FactoryMachine(
-                optimal_factory,
-                net_in, net_out,
-                NaN, NaN,
-                recipe_key,
-                recipe_cnt
-            )
+            if(recipe_cnt > 1e-6) {
+                let node = new FactoryMachine(
+                    optimal_factory,
+                    net_in, net_out,
+                    0, 0,
+                    recipe_key,
+                    recipe_cnt
+                )
 
-            FACTORY_DATA.productionRecipes[recipe_key].ingredients.forEach((ingredient) => {
-                new FlowLine(optimal_factory, ingredient.itemClass, ingredient.quantity * recipe_cnt, hub_nodes.get(ingredient.itemClass)!, node.id);
-            });
+                FACTORY_DATA.productionRecipes[recipe_key].ingredients.forEach((ingredient) => {
+                    if(ingredient.quantity * recipe_cnt > 1e-6) {
+                        new FlowLine(optimal_factory, ingredient.itemClass, ingredient.quantity * recipe_cnt, hub_nodes.get(ingredient.itemClass)!, node.id);
+                    }
+                });
 
-            FACTORY_DATA.productionRecipes[recipe_key].products.forEach((product) => {
-                new FlowLine(optimal_factory, product.itemClass, product.quantity * recipe_cnt, node.id, hub_nodes.get(product.itemClass)!);
-            });
+                FACTORY_DATA.productionRecipes[recipe_key].products.forEach((product) => {
+                    if(product.quantity * recipe_cnt > 1e-6) {
+                        new FlowLine(optimal_factory, product.itemClass, product.quantity * recipe_cnt, node.id, hub_nodes.get(product.itemClass)!);
+                    }
+                });
+            }
         });
 
 
@@ -184,7 +193,11 @@ window.addEventListener("load", () => {
                         }
                         return false;
                     })) {
-                        layers.set(key, [max + 1, y_sum / y_cnt]);
+                        let new_y = y_sum / y_cnt;
+                        if (isNaN(new_y)) {
+                            console.log(val);
+                        }
+                        layers.set(key, [max + 1, new_y]);
                         work_done = true;
                     } else {
                         work_left = true;
@@ -227,7 +240,11 @@ window.addEventListener("load", () => {
                 });
                 if (y_cnt > 0) {
                     console.log(`Premature accept`, optimal_factory.elems.get(max_y_id)!);
-                    layers.set(max_y_id, [max + 1, y_sum / y_cnt]);
+                    let new_y = y_sum / y_cnt;
+                    if (isNaN(new_y)) {
+                        console.log(optimal_factory.elems.get(max_y_id)!);
+                    }
+                    layers.set(max_y_id, [max + 1, new_y]);
                     work_done = true;
                 }
             }

@@ -26,6 +26,7 @@ body {
     border-radius: 5px;
     overflow: hidden;
     white-space: nowrap;
+    transform: translate(-50%, -50%);
 }
 
 .factory-flow {
@@ -41,10 +42,10 @@ body {
     cursor: grab;
     width: 100%;
     height: 20px;
-    background-color: #d32608;
+    background-color: #323232;
     opacity: 1;
-    background: repeating-linear-gradient( 135deg, #323232, #323232 10px, #d32608 10px, #d32608 20px);
-    border-bottom: 3px solid #d32608;
+    background: repeating-linear-gradient( 135deg, #323232, #323232 10px, #323232 10px, #323232 20px);
+    border-bottom: 3px solid #323232;
 }
 
 .factory-node-content {
@@ -69,6 +70,33 @@ body {
     opacity: 1;
     background: repeating-linear-gradient( 135deg, #323232, #323232 10px, #cdd308 10px, #cdd308 20px);
     border-bottom: 3px solid #cdd308;
+}
+
+.factory-source .factory-node-header {
+    width: 100%;
+    height: 20px;
+    background-color: #48d308;
+    opacity: 1;
+    background: repeating-linear-gradient( 135deg, #323232, #323232 10px, #48d308 10px, #48d308 20px);
+    border-bottom: 3px solid #48d308;
+}
+
+.factory-sink .factory-node-header {
+    width: 100%;
+    height: 20px;
+    background-color: #d32008;
+    opacity: 1;
+    background: repeating-linear-gradient( 135deg, #323232, #323232 10px, #d32008 10px, #d32008 20px);
+    border-bottom: 3px solid #d32008;
+}
+
+.factory-hub .factory-node-header {
+    width: 100%;
+    height: 20px;
+    background-color: #08d3d3;
+    opacity: 1;
+    background: repeating-linear-gradient( 135deg, #323232, #323232 10px, #08d3d3 10px, #08d3d3 20px);
+    border-bottom: 3px solid #08d3d3;
 }
 
 .factory-composite-name {

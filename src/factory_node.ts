@@ -26,10 +26,13 @@ export class FlowLine {
         this.to = to;
 
         this.line = createElem("div", ["factory-flow"]) as HTMLDivElement;
-        this.host.htmls.canvas?.appendChild(this.line);
+        this.host.htmls.canvas_lines!.appendChild(this.line);
 
         this.host.elems.get(this.from)!.out.flows.push(this);
         this.host.elems.get(this.to)!.in.flows.push(this);
+
+        this.line.setAttribute("data-id-from", this.from.toString());
+        this.line.setAttribute("data-id-to", this.to.toString());
     }
 
     update_position() {
@@ -192,6 +195,7 @@ export abstract class FactoryNode {
         }
 
         this.id = host.add_node(this);
+        this.elem.setAttribute("data-id", this.id.toString());
     }
 
     set_position(x: number, y: number) {
@@ -416,11 +420,13 @@ export class FactoryHub extends FactoryNode {
             });
             this.host.remove_node(this.id);
         } else {
-            this.out.flows.forEach(flow => {
-                new FlowLine(this.host, flow.resource, flow.rate,
-                    this.in.flows[0].from, flow.to);
-            });
-            this.host.remove_node(this.id);
+            if (this.in.flows.length == 1) {
+                this.out.flows.forEach(flow => {
+                    new FlowLine(this.host, flow.resource, flow.rate,
+                        this.in.flows[0].from, flow.to);
+                });
+                this.host.remove_node(this.id);
+            }
         }
     }
 };
