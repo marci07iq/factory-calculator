@@ -1,22 +1,24 @@
-import { throws } from "assert";
-import { FactoryComposite, FactoryNode, FactoryNodeID, FlowLine } from "./factory_node";
+import { FACTORY_DATA } from "./factory_data";
+import { FactoryHub, FactoryNode, FactoryNodeID, FactorySource, FlowLine } from "./factory_node";
+import { num_to_str } from "./helper";
 import { createElem } from "./utils";
 
 export class FactoryTab {
     elems: Map<FactoryNodeID, FactoryNode>;
     elem_id: FactoryNodeID = 1;
 
-    flows: Map<FactoryNodeID, FactoryNode>;
-    flows_id: FactoryNodeID = 1;
-
     htmls: {
         root?: HTMLDivElement,
+
+        ui?: HTMLDivElement,
+        save_button?: HTMLButtonElement,
+
         viewport?: HTMLDivElement,
+        context_menu?: HTMLDivElement,
         canvas?: HTMLDivElement,
         canvas_lines?: HTMLDivElement,
         canvas_nodes?: HTMLDivElement,
 
-        context_menu?: HTMLDivElement,
 
         sidebar?: HTMLDivElement,
     } = {};
@@ -30,15 +32,24 @@ export class FactoryTab {
 
     constructor() {
         this.htmls.root = createElem("div", ["factory-tab"], undefined, undefined, [
+            this.htmls.ui = createElem("div", ["factory-tab-ui"], undefined, undefined, [
+                this.htmls.save_button = createElem("button", ["factory-tab-button"], undefined, "Save") as HTMLButtonElement,
+            ]) as HTMLDivElement,
             this.htmls.viewport = createElem("div", ["factory-viewport"], undefined, undefined, [
                 this.htmls.canvas = createElem("div", ["factory-canvas"], undefined, undefined, [
                     this.htmls.canvas_lines = createElem("div", ["factory-canvas-lines"]) as HTMLDivElement,
                     this.htmls.canvas_nodes = createElem("div", ["factory-canvas-nodes"]) as HTMLDivElement
-                ]) as HTMLDivElement
+                ]) as HTMLDivElement,
+                this.htmls.context_menu = createElem("div", ["factory-tab-context"]) as HTMLDivElement,
             ]) as HTMLDivElement,
-            this.htmls.context_menu = createElem("div", ["factory-tab-context"]) as HTMLDivElement,
             this.htmls.sidebar = createElem("div", ["factory-tab-sidebar"]) as HTMLDivElement
         ]) as HTMLDivElement;
+
+
+        this.htmls.save_button.addEventListener("click", () => {
+            localStorage.setItem("save-meta", JSON.stringify({ version: 1, slots: 1 }));
+            localStorage.setItem("slot-1", JSON.stringify(this.save()));
+        });
 
         this.x = 0;
         this.y = 0;
@@ -47,9 +58,18 @@ export class FactoryTab {
         let last_x: number = NaN;
         let last_y: number = NaN;
 
-        this.htmls.viewport.onmousedown = (ev) => {
+        this.htmls.viewport!.addEventListener("contextmenu", (ev: MouseEvent) => {
+            ev.preventDefault();
+        });
+
+        this.htmls.viewport!.addEventListener("mousedown", (ev) => {
             if (ev.button == 0) {
-                if (ev.target == this.htmls.viewport || ev.target == this.htmls.canvas || ev.target == this.htmls.canvas_lines || ev.target == this.htmls.canvas_nodes) {
+                if (ev.target instanceof Node) {
+                    if (!this.htmls.context_menu!.contains(ev.target)) {
+                        this.htmls.context_menu!.innerHTML = "";
+                    }
+                }
+                if (ev.target == this.htmls.viewport || ev.target == this.htmls.canvas || ev.target == this.htmls.canvas_lines || ev.target == this.htmls.canvas_nodes || ev.target == this.htmls.context_menu) {
                     if (!ev.ctrlKey) {
                         this.clear_selected_nodes();
                     }
@@ -61,7 +81,8 @@ export class FactoryTab {
                     ev.stopPropagation();
                 }
             }
-        }
+        });
+
         document.addEventListener("mouseup", (ev) => {
             this.drag_mode = "none";
         });
@@ -106,6 +127,118 @@ export class FactoryTab {
         this.elems = new Map<FactoryNodeID, FactoryNode>();
     }
 
+    update_sidebar() {
+        this.htmls.sidebar!.innerHTML = "";
+        if (this.selected_nodes.length == 1) {
+            this.htmls.sidebar!.appendChild(createElem("div", ["factory-sidebar-header"], undefined, this.selected_nodes[0].get_name()));
+
+            let extraction_ratios = [Array<number>(this.selected_nodes[0].in.flows.length).fill(0), Array<number>(this.selected_nodes[0].out.flows.length).fill(0)];
+            this.htmls.sidebar!.appendChild(createElem("div", ["factory-sidebar-entry"], undefined, undefined, [
+                createElem("div", ["factory-sidebar-io-header"], undefined, "In"),
+                createElem("table", ["factory-sidebar-io"], undefined, undefined,
+                    this.selected_nodes[0].in.flows.map((flow, idx) => {
+                        if (this.selected_nodes[0] instanceof FactoryHub) {
+                            let btn_a = createElem("button", ["factory-sidebar-io-splitter"], undefined, "0");
+                            let btn_b = createElem("button", ["factory-sidebar-io-splitter"], undefined, "?");
+                            let btn_c = createElem("button", ["factory-sidebar-io-splitter"], undefined, "*");
+
+                            btn_a.addEventListener("click", () => {
+                                extraction_ratios[0][idx] = 0;
+                                btn_a.classList.add("factory-sidebar-io-splitter-selected");
+                                btn_b.classList.remove("factory-sidebar-io-splitter-selected");
+                                btn_c.classList.remove("factory-sidebar-io-splitter-selected");
+                            });
+                            btn_b.addEventListener("click", () => {
+                                extraction_ratios[0][idx] = NaN;
+                                btn_a.classList.remove("factory-sidebar-io-splitter-selected");
+                                btn_b.classList.add("factory-sidebar-io-splitter-selected");
+                                btn_c.classList.remove("factory-sidebar-io-splitter-selected");
+                            });
+                            btn_c.addEventListener("click", () => {
+                                extraction_ratios[0][idx] = flow.rate;
+                                btn_a.classList.remove("factory-sidebar-io-splitter-selected");
+                                btn_b.classList.remove("factory-sidebar-io-splitter-selected");
+                                btn_c.classList.add("factory-sidebar-io-splitter-selected");
+                            });
+
+                            return createElem("tr", ["factory-sidebar-io-row"], undefined, undefined, [
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, num_to_str(flow.rate)),
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, FACTORY_DATA.items[flow.resource].name),
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_a]),
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_b]),
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_c]),
+                            ]);
+                        }
+                        return createElem("tr", ["factory-sidebar-io-row"], undefined, undefined, [
+                            createElem("td", ["factory-sidebar-io-cell"], undefined, num_to_str(flow.rate)),
+                            createElem("td", ["factory-sidebar-io-cell"], undefined, FACTORY_DATA.items[flow.resource].name)
+                        ]);
+                    })
+                ),
+                createElem("div", ["factory-sidebar-io-header"], undefined, "Out"),
+                createElem("table", ["factory-sidebar-io"], undefined, undefined,
+                    this.selected_nodes[0].out.flows.map((flow, idx) => {
+                        if (this.selected_nodes[0] instanceof FactoryHub) {
+                            let btn_a = createElem("button", ["factory-sidebar-io-splitter"], undefined, "0");
+                            let btn_b = createElem("button", ["factory-sidebar-io-splitter"], undefined, "?");
+                            let btn_c = createElem("button", ["factory-sidebar-io-splitter"], undefined, "*");
+
+                            btn_a.addEventListener("click", () => {
+                                extraction_ratios[1][idx] = 0;
+                                btn_a.classList.add("factory-sidebar-io-splitter-selected");
+                                btn_b.classList.remove("factory-sidebar-io-splitter-selected");
+                                btn_c.classList.remove("factory-sidebar-io-splitter-selected");
+                            });
+                            btn_b.addEventListener("click", () => {
+                                extraction_ratios[1][idx] = NaN;
+                                btn_a.classList.remove("factory-sidebar-io-splitter-selected");
+                                btn_b.classList.add("factory-sidebar-io-splitter-selected");
+                                btn_c.classList.remove("factory-sidebar-io-splitter-selected");
+                            });
+                            btn_c.addEventListener("click", () => {
+                                extraction_ratios[1][idx] = flow.rate;
+                                btn_a.classList.remove("factory-sidebar-io-splitter-selected");
+                                btn_b.classList.remove("factory-sidebar-io-splitter-selected");
+                                btn_c.classList.add("factory-sidebar-io-splitter-selected");
+                            });
+
+                            return createElem("tr", ["factory-sidebar-io-row"], undefined, undefined, [
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, num_to_str(flow.rate)),
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, FACTORY_DATA.items[flow.resource].name),
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_a]),
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_b]),
+                                createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_c]),
+                            ]);
+                        }
+                        return createElem("tr", ["factory-sidebar-io-row"], undefined, undefined, [
+                            createElem("td", ["factory-sidebar-io-cell"], undefined, num_to_str(flow.rate)),
+                            createElem("td", ["factory-sidebar-io-cell"], undefined, FACTORY_DATA.items[flow.resource].name)
+                        ]);
+                    })
+                ),
+            ]));
+
+            if (this.selected_nodes[0] instanceof FactoryHub) {
+                this.htmls.sidebar!.appendChild(createElem("div", ["factory-sidebar-entry"], undefined, undefined, [0].map(() => {
+                    let btn = this.htmls.sidebar!.appendChild(createElem("button", ["factory-sidebar-button"], undefined, "Extract"))
+                    btn.addEventListener("click", () => {
+                        (this.selected_nodes[0] as FactoryHub).extract(extraction_ratios[0], extraction_ratios[1]);
+                    })
+                    return btn;
+                })));
+            }
+        }
+        else if (this.selected_nodes.length > 1) {
+            this.htmls.sidebar!.appendChild(createElem("div", ["factory-sidebar-entry"], undefined, undefined, [0].map(() => {
+                let btn = this.htmls.sidebar!.appendChild(createElem("button", ["factory-sidebar-button"], undefined, "Merge"))
+                btn.addEventListener("click", () => {
+                    FactoryNode.merge(this.selected_nodes);
+                })
+                return btn;
+            })));
+        }
+    }
+
     add_selected_node(node: FactoryNode, append: boolean) {
         if (this.selected_nodes.indexOf(node) == -1) {
             if (!append) {
@@ -113,14 +246,30 @@ export class FactoryTab {
             }
             this.selected_nodes.push(node);
             node.elem.classList.add("factory-node-selected");
+            node.in.flows.forEach(flow => {
+                flow.elem.classList.add("factory-flow-selected");
+            });
+            node.out.flows.forEach(flow => {
+                flow.elem.classList.add("factory-flow-selected");
+            });
+
+            this.update_sidebar();
         }
     }
 
     clear_selected_nodes() {
         this.selected_nodes.forEach(node => {
             node.elem.classList.remove("factory-node-selected");
+
+            node.in.flows.forEach(flow => {
+                flow.elem.classList.remove("factory-flow-selected");
+            });
+            node.out.flows.forEach(flow => {
+                flow.elem.classList.remove("factory-flow-selected");
+            });
         });
         this.selected_nodes = [];
+        this.update_sidebar();
     }
 
     reset_css() {
@@ -133,8 +282,9 @@ export class FactoryTab {
         this.htmls.viewport!.style.backgroundPosition = `${this.x - 1}px ${this.y - 1}px, ${this.x - 1}px ${this.y - 1}px, ${this.x - 0.5}px ${this.y - 0.5}px, ${this.x - 0.5}px ${this.y - 0.5}px`;
     }
 
-    add_node(node: FactoryNode): FactoryNodeID {
-        let new_id = this.elem_id++;
+    add_node(node: FactoryNode, id: number | undefined): FactoryNodeID {
+        let new_id = id ?? (this.elem_id++);
+        this.elem_id = Math.max(this.elem_id, new_id + 1);
         node.id = new_id;
         this.elems.set(new_id, node);
         this.htmls.canvas_nodes!.appendChild(node.elem);
@@ -143,7 +293,7 @@ export class FactoryTab {
     remove_flow(flow: FlowLine) {
         this.elems.get(flow.from)!.out.flows = this.elems.get(flow.from)!.out.flows.filter(tflow => tflow != flow);
         this.elems.get(flow.to)!.in.flows = this.elems.get(flow.to)!.in.flows.filter(tflow => tflow != flow);
-        this.htmls.canvas_lines!.removeChild(flow.line);
+        this.htmls.canvas_lines!.removeChild(flow.elem);
     }
     remove_node(id: FactoryNodeID) {
         let node = this.elems.get(id)!;
@@ -160,5 +310,33 @@ export class FactoryTab {
         if (node.out.flows.length != 0) throw new Error("Failed to wipe");
         //Remove from element map
         this.elems.delete(id);
+
+        this.selected_nodes = this.selected_nodes.filter(node2 => node2 != node);
+        this.update_sidebar();
+    }
+
+    save() {
+        let res = {
+            nodes: new Array(),
+            flows: new Array()
+        };
+        this.elems.forEach(elem => {
+            res.nodes.push(elem.save());
+            elem.out.flows.forEach(flow => {
+                res.flows.push(flow.save());
+            });
+        });
+
+        return res;
+    }
+
+    load(data) {
+        data.nodes.forEach(node => {
+            FactoryNode.load(node, this);
+        });
+
+        data.flows.forEach(node => {
+            FlowLine.load(node, this);
+        })
     }
 }
