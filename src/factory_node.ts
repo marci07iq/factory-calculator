@@ -433,6 +433,7 @@ export abstract class FactoryNode {
     }
     abstract save();
 
+    abstract create_sidebar_menu(): Array<HTMLElement>;
     abstract create_context_menu(): Array<HTMLDivElement>;
 
     static merge(parts: Array<FactoryNode>): FactoryNode | undefined {
@@ -531,7 +532,7 @@ export abstract class FactoryNode {
     }
 };
 
-export class FactorySource extends FactoryNode {
+export abstract class FactoryLogistic extends FactoryNode {
     resource: string;
     count: number;
 
@@ -540,6 +541,179 @@ export class FactorySource extends FactoryNode {
 
         this.resource = resource;
         this.count = count;
+    }
+
+    save(): any {
+        return {
+            type: this.get_type(),
+            id: this.id,
+            x: this.x,
+            y: this.y,
+            resource: this.resource,
+            count: this.count
+        };
+    }
+
+    create_sidebar_menu(): Array<HTMLElement> {
+        let extraction_ratios = [Array<number>(this.in.flows.length).fill(0), Array<number>(this.out.flows.length).fill(0)];
+
+        let res = new Array<HTMLElement>();
+
+        let build_table = (view: FlowView, type: string, arr: Array<HTMLElement>, io: number) => {
+            let flows = view.get(type);
+            if (flows !== undefined) {
+                //arr.push(createElem("div", ["factory-sidebar-io-resource"], undefined, FACTORY_DATA.items[type].name));
+
+                arr.push(createElem("table", ["factory-sidebar-io"], undefined, undefined, flows.parts.map((flow, idx) => {
+                    let btn_a = createElem("button", ["factory-sidebar-io-splitter"], undefined, "0");
+                    let btn_b = createElem("button", ["factory-sidebar-io-splitter"], undefined, "?");
+                    let btn_c = createElem("button", ["factory-sidebar-io-splitter"], undefined, "*");
+
+                    btn_a.addEventListener("click", () => {
+                        extraction_ratios[io][idx] = 0;
+                        btn_a.classList.add("factory-sidebar-io-splitter-selected");
+                        btn_b.classList.remove("factory-sidebar-io-splitter-selected");
+                        btn_c.classList.remove("factory-sidebar-io-splitter-selected");
+                    });
+                    btn_b.addEventListener("click", () => {
+                        extraction_ratios[io][idx] = NaN;
+                        btn_a.classList.remove("factory-sidebar-io-splitter-selected");
+                        btn_b.classList.add("factory-sidebar-io-splitter-selected");
+                        btn_c.classList.remove("factory-sidebar-io-splitter-selected");
+                    });
+                    btn_c.addEventListener("click", () => {
+                        extraction_ratios[io][idx] = flow.rate;
+                        btn_a.classList.remove("factory-sidebar-io-splitter-selected");
+                        btn_b.classList.remove("factory-sidebar-io-splitter-selected");
+                        btn_c.classList.add("factory-sidebar-io-splitter-selected");
+                    });
+
+                    return createElem("tr", ["factory-sidebar-io-row"], undefined, undefined, [
+                        createElem("td", ["factory-sidebar-io-cell"], undefined, num_to_str(flow.rate)),
+                        createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_a]),
+                        createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_b]),
+                        createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_c]),
+                    ]);
+                })));
+            }
+        };
+
+
+        let in_items = new Array<HTMLElement>();
+        in_items.push(createElem("div", ["factory-sidebar-io-header"], undefined, "In"));
+        build_table(collapse_flows(this.in.flows), this.resource, in_items, 0)
+        res.push(createElem("div", ["factory-sidebar-entry"], undefined, undefined, in_items) as HTMLDivElement);
+
+        let out_items = new Array<HTMLElement>();
+        out_items.push(createElem("div", ["factory-sidebar-io-header"], undefined, "Out"));
+        build_table(collapse_flows(this.out.flows), this.resource, out_items, 1)
+        res.push(createElem("div", ["factory-sidebar-entry"], undefined, undefined, out_items) as HTMLDivElement);
+
+
+        res.push(createElem("div", ["factory-sidebar-entry"], undefined, undefined, [0].map(() => {
+            let btn = createElem("button", ["factory-sidebar-button"], undefined, "Extract");
+            btn.addEventListener("click", () => {
+                this.extract(extraction_ratios[0], extraction_ratios[1]);
+            })
+            return btn;
+        })) as HTMLDivElement);
+
+        return res;
+
+    }
+
+    create_context_menu(): Array<HTMLDivElement> {
+        return [];
+    }
+
+
+    extract(in_parts: Array<number>, out_parts: Array<number>) {
+        let total_in = 0;
+        let total_out = 0;
+        let any_in = false;
+        let any_out = false;
+
+        in_parts.forEach((val) => {
+            if (isNaN(val)) {
+                any_in = true;
+            } else {
+                total_in += val;
+            }
+        });
+
+        out_parts.forEach((val) => {
+            if (isNaN(val)) {
+                any_out = true;
+            } else {
+                total_out += val;
+            }
+        });
+
+        let total = Math.max(total_in, total_out);
+
+        if (total == total_in) any_in = false;
+        if (total == total_out) any_out = false;
+
+        //Assign any-s
+        in_parts.forEach((val, idx, arr) => {
+            if (isNaN(val)) {
+                let new_total = Math.min(total, total_in + this.in.flows[idx].rate);
+                arr[idx] = new_total - total_in;
+                total_in = new_total;
+            }
+        });
+        out_parts.forEach((val, idx, arr) => {
+            if (isNaN(val)) {
+                let new_total = Math.min(total, total_out + this.out.flows[idx].rate);
+                arr[idx] = new_total - total_out;
+                total_out = new_total;
+            }
+        });
+
+        console.log(in_parts, out_parts);
+
+        let node = new (Object.getPrototypeOf(this).constructor)(this.host, undefined, this.x, this.y + 200, this.resource, total) as FactoryLogistic;
+
+        let to_remove = new Array<FlowLine>();
+        in_parts.forEach((val, idx) => {
+            let left = this.in.flows[idx].rate - val;
+            to_remove.push(this.in.flows[idx]);
+            //float error
+            if (left > 1e-6) {
+                new FlowLine(this.host, this.resource, left, this.in.flows[idx].from, this.id);
+            }
+            if (val > 1e-6) {
+                new FlowLine(this.host, this.resource, val, this.in.flows[idx].from, node.id);
+            }
+        });
+        out_parts.forEach((val, idx) => {
+            let left = this.out.flows[idx].rate - val;
+            to_remove.push(this.out.flows[idx]);
+            //float error
+            if (left > 1e-6) {
+                new FlowLine(this.host, this.resource, left, this.id, this.out.flows[idx].to);
+            }
+            if (val > 1e-6) {
+                new FlowLine(this.host, this.resource, val, node.id, this.out.flows[idx].to);
+            }
+        });
+        to_remove.forEach(flow => {
+            this.host.remove_flow(flow);
+        });
+
+        if (node instanceof FactoryHub) {
+            node.try_eliminate();
+        }
+
+        this.set_position(this.x, this.y);
+        node.set_position(node.x, node.y);
+    }
+
+};
+
+export class FactorySource extends FactoryLogistic {
+    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, resource: string, count: number) {
+        super(host, id, x, y, resource, count);
 
         this.elem.classList.add("factory-source");
         this.elem_content.appendChild(createElem(
@@ -583,31 +757,15 @@ export class FactorySource extends FactoryNode {
         return "source";
     }
 
-    save(): any {
-        return {
-            type: "source",
-            id: this.id,
-            x: this.x,
-            y: this.y,
-            resource: this.resource,
-            count: this.count
-        };
-    }
-
     create_context_menu(): Array<HTMLDivElement> {
         return [];
     }
 };
 
-export class FactorySink extends FactoryNode {
-    resource: string;
-    count: number;
+export class FactorySink extends FactoryLogistic {
 
     constructor(host: FactoryTab, id: number | undefined, x: number, y: number, resource: string, count: number) {
-        super(host, id, x, y);
-
-        this.resource = resource;
-        this.count = count;
+        super(host, id, x, y, resource, count);
 
         this.elem.classList.add("factory-sink");
         this.elem_content.appendChild(createElem(
@@ -651,31 +809,14 @@ export class FactorySink extends FactoryNode {
         return "sink";
     }
 
-    save(): any {
-        return {
-            type: "sink",
-            id: this.id,
-            x: this.x,
-            y: this.y,
-            resource: this.resource,
-            count: this.count
-        };
-    }
-
     create_context_menu(): Array<HTMLDivElement> {
         return [];
     }
 };
 
-export class FactoryHub extends FactoryNode {
-    resource: string;
-    count: number;
-
+export class FactoryHub extends FactoryLogistic {
     constructor(host: FactoryTab, id: number | undefined, x: number, y: number, resource: string, count: number) {
-        super(host, id, x, y);
-
-        this.resource = resource;
-        this.count = count;
+        super(host, id, x, y, resource, count);
 
         this.elem.classList.add("factory-hub");
         this.elem_content.appendChild(createElem(
@@ -734,97 +875,6 @@ export class FactoryHub extends FactoryNode {
     }
     get_type(): FactoryNodeType {
         return "hub";
-    }
-
-    save(): any {
-        return {
-            type: "hub",
-            id: this.id,
-            x: this.x,
-            y: this.y,
-            resource: this.resource,
-            count: this.count
-        };
-    }
-
-    extract(in_parts: Array<number>, out_parts: Array<number>) {
-        let total_in = 0;
-        let total_out = 0;
-        let any_in = false;
-        let any_out = false;
-
-        in_parts.forEach((val) => {
-            if (isNaN(val)) {
-                any_in = true;
-            } else {
-                total_in += val;
-            }
-        });
-
-        out_parts.forEach((val) => {
-            if (isNaN(val)) {
-                any_out = true;
-            } else {
-                total_out += val;
-            }
-        });
-
-        let total = Math.max(total_in, total_out);
-
-        if (total == total_in) any_in = false;
-        if (total == total_out) any_out = false;
-
-        //Assign any-s
-        in_parts.forEach((val, idx, arr) => {
-            if (isNaN(val)) {
-                let new_total = Math.min(total, total_in + this.in.flows[idx].rate);
-                arr[idx] = new_total - total_in;
-                total_in = new_total;
-            }
-        });
-        out_parts.forEach((val, idx, arr) => {
-            if (isNaN(val)) {
-                let new_total = Math.min(total, total_out + this.out.flows[idx].rate);
-                arr[idx] = new_total - total_out;
-                total_out = new_total;
-            }
-        });
-
-        console.log(in_parts, out_parts);
-
-        let node = new FactoryHub(this.host, undefined, this.x, this.y + 200, this.resource, total);
-
-        let to_remove = new Array<FlowLine>();
-        in_parts.forEach((val, idx) => {
-            let left = this.in.flows[idx].rate - val;
-            to_remove.push(this.in.flows[idx]);
-            //float error
-            if (left > 1e-6) {
-                new FlowLine(this.host, this.resource, left, this.in.flows[idx].from, this.id);
-            }
-            if (val > 1e-6) {
-                new FlowLine(this.host, this.resource, val, this.in.flows[idx].from, node.id);
-            }
-        });
-        out_parts.forEach((val, idx) => {
-            let left = this.out.flows[idx].rate - val;
-            to_remove.push(this.out.flows[idx]);
-            //float error
-            if (left > 1e-6) {
-                new FlowLine(this.host, this.resource, left, this.id, this.out.flows[idx].to);
-            }
-            if (val > 1e-6) {
-                new FlowLine(this.host, this.resource, val, node.id, this.out.flows[idx].to);
-            }
-        });
-        to_remove.forEach(flow => {
-            this.host.remove_flow(flow);
-        });
-
-        node.try_eliminate();
-
-        this.set_position(this.x, this.y);
-        node.set_position(node.x, node.y);
     }
 
     create_context_menu(): Array<HTMLDivElement> {
@@ -886,7 +936,7 @@ export class FactoryMachine extends FactoryNode {
     }
 
     get_name(): string {
-        return `${num_to_str(this.recipe_count * FACTORY_DATA.productionRecipes[this.recipe].craftTime / 60)} x ${FACTORY_DATA.buildables[FACTORY_DATA.productionRecipes[this.recipe].producedIn].name}`;
+        return FACTORY_DATA.productionRecipes[this.recipe].name;
     }
     get_type(): FactoryNodeType {
         return "machine";
@@ -903,6 +953,73 @@ export class FactoryMachine extends FactoryNode {
         };
     }
 
+    create_sidebar_menu(): Array<HTMLElement> {
+        //let extraction_ratios = [Array<number>(this.in.flows.length).fill(0), Array<number>(this.out.flows.length).fill(0)];
+
+        let res = new Array<HTMLElement>();
+
+        let build_table = (view, arr, io) => {
+            for (let [type, flows] of view) {
+                arr.push(createElem("div", ["factory-sidebar-io-resource"], undefined, FACTORY_DATA.items[type].name));
+
+                arr.push(createElem("table", ["factory-sidebar-io"], undefined, undefined, flows.parts.map((flow, idx) => {
+                    /*let btn_a = createElem("button", ["factory-sidebar-io-splitter"], undefined, "0");
+                    let btn_b = createElem("button", ["factory-sidebar-io-splitter"], undefined, "?");
+                    let btn_c = createElem("button", ["factory-sidebar-io-splitter"], undefined, "*");
+
+                    btn_a.addEventListener("click", () => {
+                        extraction_ratios[io][idx] = 0;
+                        btn_a.classList.add("factory-sidebar-io-splitter-selected");
+                        btn_b.classList.remove("factory-sidebar-io-splitter-selected");
+                        btn_c.classList.remove("factory-sidebar-io-splitter-selected");
+                    });
+                    btn_b.addEventListener("click", () => {
+                        extraction_ratios[io][idx] = NaN;
+                        btn_a.classList.remove("factory-sidebar-io-splitter-selected");
+                        btn_b.classList.add("factory-sidebar-io-splitter-selected");
+                        btn_c.classList.remove("factory-sidebar-io-splitter-selected");
+                    });
+                    btn_c.addEventListener("click", () => {
+                        extraction_ratios[io][idx] = flow.rate;
+                        btn_a.classList.remove("factory-sidebar-io-splitter-selected");
+                        btn_b.classList.remove("factory-sidebar-io-splitter-selected");
+                        btn_c.classList.add("factory-sidebar-io-splitter-selected");
+                    });*/
+
+                    return createElem("tr", ["factory-sidebar-io-row"], undefined, undefined, [
+                        createElem("td", ["factory-sidebar-io-cell"], undefined, num_to_str(flow.rate)),
+                        //createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_a]),
+                        //createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_b]),
+                        //createElem("td", ["factory-sidebar-io-cell"], undefined, undefined, [btn_c]),
+                    ]);
+                })));
+            }
+        };
+
+
+        let in_items = new Array<HTMLElement>();
+        in_items.push(createElem("div", ["factory-sidebar-io-header"], undefined, "In"));
+        build_table(collapse_flows(this.in.flows), in_items, 0)
+        res.push(createElem("div", ["factory-sidebar-entry"], undefined, undefined, in_items) as HTMLDivElement);
+
+        let out_items = new Array<HTMLElement>();
+        out_items.push(createElem("div", ["factory-sidebar-io-header"], undefined, "Out"));
+        build_table(collapse_flows(this.out.flows), out_items, 1)
+        res.push(createElem("div", ["factory-sidebar-entry"], undefined, undefined, out_items) as HTMLDivElement);
+
+
+        /*res.push(createElem("div", ["factory-sidebar-entry"], undefined, undefined, [0].map(() => {
+            let btn = createElem("button", ["factory-sidebar-button"], undefined, "Extract");
+            btn.addEventListener("click", () => {
+                this.extract(extraction_ratios[0], extraction_ratios[1]);
+            })
+            return btn;
+        })) as HTMLDivElement);*/
+
+        return res;
+
+    }
+
     create_context_menu(): Array<HTMLDivElement> {
         return [];
     }
@@ -911,17 +1028,23 @@ export class FactoryMachine extends FactoryNode {
 /*
 export class FactoryComposite extends FactoryNode {
     name: string;
-    components: Array<FactoryNode>;
+    components: Map<FactoryNodeID, FactoryNode>;
+    io_hubs =  
 
-    constructor(host: FactoryTab, x: number, y: number, name: string, components: Array<FactoryNode>) {
+    constructor(host: FactoryTab, id: FactoryNodeID | undefined, x: number, y: number, name: string, components: Array<FactoryNode>) {
         super(
             host,
+            id,
             x,
             y
         );
 
         this.name = name;
-        this.components = components;
+        this.components = new Map<FactoryNodeID, FactoryNode>();
+        components.forEach(comp => {
+            this.components.set(comp.id, comp);
+        });
+
 
         this.elem.classList.add("factory-composite");
         let in_elem: HTMLInputElement;
