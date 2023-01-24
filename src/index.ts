@@ -193,7 +193,7 @@ window.addEventListener("load", () => {
                         let max = 0;
                         let y_sum = 0;
                         let y_cnt = 0;
-                        if (val.in.flows.every((flow) => {
+                        if (val.in.everyFlat((flow) => {
                             if (layers.has(flow.from)) {
                                 max = Math.max(max, layers.get(flow.from)!.at(0)!);
                                 ++y_cnt;
@@ -225,7 +225,7 @@ window.addEventListener("load", () => {
                             let y_cnt = 0;
                             let y_deficit = 0;
 
-                            val.in.flows.forEach((flow) => {
+                            val.in.forEachFlat((flow) => {
                                 if (layers.has(flow.from)) {
                                     ++y_cnt;
                                     --y_deficit;
@@ -249,7 +249,7 @@ window.addEventListener("load", () => {
                     let y_sum = 0;
                     let y_cnt = 0;
 
-                    optimal_factory.elems.get(best_y_id)!.in.flows.forEach((flow) => {
+                    optimal_factory.elems.get(best_y_id)!.in.forEachFlat((flow) => {
                         if (layers.has(flow.from)) {
                             max = Math.max(max, layers.get(flow.from)!.at(0)!);
                             ++y_cnt;

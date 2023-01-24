@@ -154,10 +154,10 @@ export class FactoryTab {
             }
             this.selected_nodes.push(node);
             node.elem.classList.add("factory-node-selected");
-            node.in.flows.forEach(flow => {
+            node.in.forEachFlat(flow => {
                 flow.elem.classList.add("factory-flow-selected");
             });
-            node.out.flows.forEach(flow => {
+            node.out.forEachFlat(flow => {
                 flow.elem.classList.add("factory-flow-selected");
             });
 
@@ -169,10 +169,10 @@ export class FactoryTab {
         this.selected_nodes.forEach(node => {
             node.elem.classList.remove("factory-node-selected");
 
-            node.in.flows.forEach(flow => {
+            node.in.forEachFlat(flow => {
                 flow.elem.classList.remove("factory-flow-selected");
             });
-            node.out.flows.forEach(flow => {
+            node.out.forEachFlat(flow => {
                 flow.elem.classList.remove("factory-flow-selected");
             });
         });
@@ -199,8 +199,8 @@ export class FactoryTab {
         return new_id;
     }
     remove_flow(flow: FlowLine) {
-        this.elems.get(flow.from)!.out.flows = this.elems.get(flow.from)!.out.flows.filter(tflow => tflow != flow);
-        this.elems.get(flow.to)!.in.flows = this.elems.get(flow.to)!.in.flows.filter(tflow => tflow != flow);
+        this.elems.get(flow.from)!.out.remove(flow);
+        this.elems.get(flow.to)!.in.remove(flow);
         this.htmls.canvas_lines!.removeChild(flow.elem);
     }
     remove_node(id: FactoryNodeID) {
@@ -208,14 +208,14 @@ export class FactoryTab {
         //Remove from canvas
         this.htmls.canvas_nodes!.removeChild(node.elem);
         //Remove flows
-        node.in.flows.forEach((flow) => {
+        node.in.forEachFlat((flow) => {
             this.remove_flow(flow);
         });
-        if (node.in.flows.length != 0) throw new Error("Failed to wipe");
-        node.out.flows.forEach((flow) => {
+        //if (node.in.flows.length != 0) throw new Error("Failed to wipe");
+        node.out.forEachFlat((flow) => {
             this.remove_flow(flow);
         });
-        if (node.out.flows.length != 0) throw new Error("Failed to wipe");
+        //if (node.out.flows.length != 0) throw new Error("Failed to wipe");
         //Remove from element map
         this.elems.delete(id);
 
@@ -230,7 +230,7 @@ export class FactoryTab {
         };
         this.elems.forEach(elem => {
             res.nodes.push(elem.save());
-            elem.out.flows.forEach(flow => {
+            elem.out.forEachFlat(flow => {
                 res.flows.push(flow.save());
             });
         });
