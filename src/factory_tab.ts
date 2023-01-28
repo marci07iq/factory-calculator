@@ -70,6 +70,7 @@ export class FactoryTab {
                     }
                 }
                 if (ev.target == this.htmls.viewport || ev.target == this.htmls.canvas || ev.target == this.htmls.canvas_lines || ev.target == this.htmls.canvas_nodes || ev.target == this.htmls.context_menu) {
+                    this.htmls.context_menu!.innerHTML = "";
                     if (!ev.ctrlKey) {
                         this.clear_selected_nodes();
                     }
@@ -154,11 +155,11 @@ export class FactoryTab {
             }
             this.selected_nodes.push(node);
             node.elem.classList.add("factory-node-selected");
-            node.in.forEachFlat(flow => {
-                flow.elem.classList.add("factory-flow-selected");
+            node.io[0].forEachFlat(flow => {
+                flow.elem.classList.add("factory-flow-selected-i");
             });
-            node.out.forEachFlat(flow => {
-                flow.elem.classList.add("factory-flow-selected");
+            node.io[1].forEachFlat(flow => {
+                flow.elem.classList.add("factory-flow-selected-o");
             });
 
             this.update_sidebar();
@@ -169,11 +170,11 @@ export class FactoryTab {
         this.selected_nodes.forEach(node => {
             node.elem.classList.remove("factory-node-selected");
 
-            node.in.forEachFlat(flow => {
-                flow.elem.classList.remove("factory-flow-selected");
+            node.io[0].forEachFlat(flow => {
+                flow.elem.classList.remove("factory-flow-selected-i");
             });
-            node.out.forEachFlat(flow => {
-                flow.elem.classList.remove("factory-flow-selected");
+            node.io[1].forEachFlat(flow => {
+                flow.elem.classList.remove("factory-flow-selected-o");
             });
         });
         this.selected_nodes = [];
@@ -199,8 +200,8 @@ export class FactoryTab {
         return new_id;
     }
     remove_flow(flow: FlowLine) {
-        this.elems.get(flow.from)!.out.remove(flow);
-        this.elems.get(flow.to)!.in.remove(flow);
+        this.elems.get(flow.from)!.io[1].remove(flow);
+        this.elems.get(flow.to)!.io[0].remove(flow);
         this.htmls.canvas_lines!.removeChild(flow.elem);
     }
     remove_node(id: FactoryNodeID) {
@@ -208,11 +209,11 @@ export class FactoryTab {
         //Remove from canvas
         this.htmls.canvas_nodes!.removeChild(node.elem);
         //Remove flows
-        node.in.forEachFlat((flow) => {
+        node.io[0].forEachFlat((flow) => {
             this.remove_flow(flow);
         });
         //if (node.in.flows.length != 0) throw new Error("Failed to wipe");
-        node.out.forEachFlat((flow) => {
+        node.io[1].forEachFlat((flow) => {
             this.remove_flow(flow);
         });
         //if (node.out.flows.length != 0) throw new Error("Failed to wipe");
@@ -230,7 +231,7 @@ export class FactoryTab {
         };
         this.elems.forEach(elem => {
             res.nodes.push(elem.save());
-            elem.out.forEachFlat(flow => {
+            elem.io[1].forEachFlat(flow => {
                 res.flows.push(flow.save());
             });
         });

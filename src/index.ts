@@ -61,6 +61,7 @@ window.addEventListener("load", () => {
             //Print tally
             //Create hub nodes
             tally.forEach((item_cnt, item_key) => {
+                //console.log(item_key, item_cnt);
                 let delta = item_cnt[1] - item_cnt[0];
 
                 //Hub node
@@ -68,7 +69,7 @@ window.addEventListener("load", () => {
                     optimal_factory,
                     undefined,
                     0, 0,
-                    item_key, (item_cnt[1] + item_cnt[0]) / 2
+                    item_key, Math.max(item_cnt[1], item_cnt[0])
                 );
                 hub_nodes.set(item_key, hub_node.id);
 
@@ -193,7 +194,7 @@ window.addEventListener("load", () => {
                         let max = 0;
                         let y_sum = 0;
                         let y_cnt = 0;
-                        if (val.in.everyFlat((flow) => {
+                        if (val.io[0].everyFlat((flow) => {
                             if (layers.has(flow.from)) {
                                 max = Math.max(max, layers.get(flow.from)!.at(0)!);
                                 ++y_cnt;
@@ -225,7 +226,7 @@ window.addEventListener("load", () => {
                             let y_cnt = 0;
                             let y_deficit = 0;
 
-                            val.in.forEachFlat((flow) => {
+                            val.io[0].forEachFlat((flow) => {
                                 if (layers.has(flow.from)) {
                                     ++y_cnt;
                                     --y_deficit;
@@ -249,7 +250,7 @@ window.addEventListener("load", () => {
                     let y_sum = 0;
                     let y_cnt = 0;
 
-                    optimal_factory.elems.get(best_y_id)!.in.forEachFlat((flow) => {
+                    optimal_factory.elems.get(best_y_id)!.io[0].forEachFlat((flow) => {
                         if (layers.has(flow.from)) {
                             max = Math.max(max, layers.get(flow.from)!.at(0)!);
                             ++y_cnt;
