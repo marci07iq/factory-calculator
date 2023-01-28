@@ -28,7 +28,7 @@ export class FactoryTab {
     zoom: number = 1;
 
     selected_nodes: Array<FactoryNode> = [];
-    drag_mode: "none" | "canvas" | "node" = "none";
+    drag_mode: "none" | "canvas" | "node" | "select" = "none";
 
     constructor() {
         this.htmls.root = createElem("div", ["factory-tab"], undefined, undefined, [
@@ -70,30 +70,61 @@ export class FactoryTab {
                     }
                 }
                 if (ev.target == this.htmls.viewport || ev.target == this.htmls.canvas || ev.target == this.htmls.canvas_lines || ev.target == this.htmls.canvas_nodes || ev.target == this.htmls.context_menu) {
-                    this.htmls.context_menu!.innerHTML = "";
-                    if (!ev.ctrlKey) {
-                        this.clear_selected_nodes();
+                    if(ev.shiftKey) {
+                        this.drag_mode = "select";
+
+                        last_x = ev.clientX;
+                        last_y = ev.clientY;
+
+                        ev.stopPropagation();
+                    } else {
+                        this.htmls.context_menu!.innerHTML = "";
+                        if (!ev.ctrlKey) {
+                            this.clear_selected_nodes();
+                        }
+                        this.drag_mode = "canvas";
+
+                        last_x = ev.clientX;
+                        last_y = ev.clientY;
+
+                        ev.stopPropagation();
                     }
-                    this.drag_mode = "canvas";
-
-                    last_x = ev.clientX;
-                    last_y = ev.clientY;
-
-                    ev.stopPropagation();
                 }
             }
         });
 
         document.addEventListener("mouseup", (ev) => {
+            if (this.drag_mode == "select") {
+                let first_x = (Math.min(ev.clientX, last_x) - this.x)/this.zoom;
+                let first_y = (Math.min(ev.clientY, last_y) - this.y)/this.zoom;
+                let second_x = (Math.max(ev.clientX, last_x) - this.x)/this.zoom;
+                let second_y = (Math.max(ev.clientY, last_y) - this.y)/this.zoom;
+
+                //Recalculate to client coordinates
+
+                if(!ev.ctrlKey) {
+                    this.clear_selected_nodes();
+                }
+                this.elems.forEach((elem => {
+                    if(first_x <= elem.x && elem.x <= second_x &&
+                        first_y <= elem.y && elem.y <= second_y) {
+                            this.add_selected_node(elem, true);
+                        }
+                }))
+            }
             this.drag_mode = "none";
         });
 
         document.addEventListener("mousemove", (ev) => {
             let dx = (ev.clientX - last_x);
             let dy = (ev.clientY - last_y);
-            last_x = ev.clientX;
-            last_y = ev.clientY;
-
+        
+            if (this.drag_mode == "select") {
+                ev.stopPropagation();
+            } else {
+                last_x = ev.clientX;
+                last_y = ev.clientY;
+            }
             if (this.drag_mode == "canvas") {
                 this.x += dx;
                 this.y += dy;

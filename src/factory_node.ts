@@ -548,7 +548,7 @@ export abstract class FactoryNode {
             node.set_position(node.x, node.y);
             node.update_element();
             if (node instanceof FactoryHub) {
-                node.try_eliminate();
+                //node.try_eliminate();
             }
         });
     }
@@ -647,8 +647,28 @@ export abstract class FactoryNode {
         let build_table = (io_idx: number, res_arr: Array<HTMLElement>) => {
             for (let [resource, flows] of this.io[io_idx]) {
                 let count_elem: HTMLElement;
-                res_arr.push(createElem("div", ["factory-sidebar-io-resource"], undefined, FACTORY_DATA.items[resource].name));
+                let hub_bnt: HTMLElement;
+                res_arr.push(createElem("div", ["factory-sidebar-io-resource"], undefined, undefined, [
+                    createElem("span", ["factory-sidebar-io-resource-name"], undefined, FACTORY_DATA.items[resource].name),
+                    hub_bnt = createElem("button", ["factory-sidebar-io-resource-hub"], undefined, "Make hub")
+                ]));
                 res_arr.push(count_elem = createElem("div", ["factory-sidebar-io-resource-cnt"], undefined, "[0, 0] / " + num_to_str(flows.total)));
+
+                hub_bnt.addEventListener("click", () => {
+                    let new_node = new FactoryHub(this.host, undefined, this.x + 200, this.y, flows.total, resource);
+                    //Hub -> dst
+                    flows.parts.forEach((flow, idx) => {
+                        new FlowLine(this.host, flow.resource, flow.rate, (io_idx == 0) ? flow.from : new_node.id, (io_idx == 0) ? new_node.id : flow.to);
+                    });
+                    let total = flows.total;
+                    //Wipe all old flows
+                    while (flows.parts.length) {
+                        this.host.remove_flow(flows.parts[0]);
+                    }
+                    //Node -> hub
+                    new FlowLine(this.host, resource, total, (io_idx == 0) ? new_node.id : this.id, (io_idx == 0) ? this.id : new_node.id);
+                    this.host.clear_selected_nodes();
+                });
 
                 let extraction_ratio = Array<number>(this.io[io_idx].get_always(resource).parts.length).fill(0);
                 extraction_ratios[io_idx].set(resource, extraction_ratio);
