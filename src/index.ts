@@ -69,7 +69,7 @@ window.addEventListener("load", () => {
                     optimal_factory,
                     undefined,
                     0, 0,
-                    item_key, Math.max(item_cnt[1], item_cnt[0])
+                    Math.max(item_cnt[1], item_cnt[0]), item_key
                 );
                 hub_nodes.set(item_key, hub_node.id);
 
@@ -82,7 +82,7 @@ window.addEventListener("load", () => {
                             optimal_factory,
                             undefined,
                             0, 0,
-                            item_key, -delta
+                            -delta, item_key
                         );
                         new FlowLine(optimal_factory, item_key, -delta, node.id, hub_node.id);
                         //Sunk
@@ -92,7 +92,7 @@ window.addEventListener("load", () => {
                             optimal_factory,
                             undefined,
                             0, 0,
-                            item_key, delta
+                            delta, item_key
                         );
                         new FlowLine(optimal_factory, item_key, delta, hub_node.id, node.id);
                     }
@@ -126,8 +126,8 @@ window.addEventListener("load", () => {
                         optimal_factory,
                         undefined,
                         0, 0,
+                        recipe_cnt,
                         recipe_key,
-                        recipe_cnt
                     )
 
                     FACTORY_DATA.productionRecipes[recipe_key].ingredients.forEach((ingredient) => {

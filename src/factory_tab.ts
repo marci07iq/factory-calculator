@@ -239,13 +239,16 @@ export class FactoryTab {
         return res;
     }
 
-    load(data) {
-        data.nodes.forEach(node => {
-            FactoryNode.load(node, this);
+    load(data, mult: number = 1, remap: Map<FactoryNodeID, FactoryNodeID> | undefined = undefined): Array<FactoryNode> {
+        let remap2 = remap ?? new Map<FactoryNodeID, FactoryNodeID>();
+        let nodes = data.nodes.map(node => {
+            return FactoryNode.load(node, this, remap2, mult);
         });
 
         data.flows.forEach(node => {
-            FlowLine.load(node, this);
-        })
+            FlowLine.load(node, this, remap2, mult);
+        });
+
+        return nodes;
     }
 }
