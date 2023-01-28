@@ -263,13 +263,15 @@ function merge_flow_in(parts: Array<ProcessingIO>, new_to: FactoryNodeID) {
 
     flow_sum.forEach((flows, resource) => {
         flows.forEach((rate, other) => {
-            new FlowLine(
-                host,
-                resource,
-                rate,
-                other,
-                new_to,
-            );
+            if (other != new_to) {
+                new FlowLine(
+                    host,
+                    resource,
+                    rate,
+                    other,
+                    new_to,
+                );
+            }
         });
     });
 }
@@ -295,19 +297,17 @@ function merge_flow_out(parts: Array<ProcessingIO>, new_from: FactoryNodeID) {
 
     flow_sum.forEach((flows, resource) => {
         flows.forEach((rate, other) => {
-            new FlowLine(
-                host,
-                resource,
-                rate,
-                new_from,
-                other,
-            );
+            if (other != new_from) {
+                new FlowLine(
+                    host,
+                    resource,
+                    rate,
+                    new_from,
+                    other,
+                );
+            }
         });
     });
-}
-
-type SplitResult = {
-    mapping: Map<FactoryNodeID, Array<FactoryNodeID>>;
 }
 
 export type FactoryNodeType = "source" | "sink" | "hub" | "machine" | "composite";
@@ -428,18 +428,18 @@ export abstract class FactoryNode {
                             resource_max += comp;
                         }
                     });
-                    console.log(pidx, sidx, resource, resource_min, resource_max);
+                    //console.log(pidx, sidx, resource, resource_min, resource_max);
                     resource_lims_entry[sidx].set(resource, [resource_min, resource_max]);
 
 
                     let mul = ratios[sidx].get(resource)!;
-                    console.log(mul);
+                    //console.log(mul);
                     let resource_norm_min = (resource_min == 0 && mul == 0) ? 0 : (resource_min / mul);
                     let resource_norm_max = (resource_max == 0 && mul == 0) ? Infinity : (resource_max / mul);
                     side_min = Math.max(resource_norm_min, side_min);
                     side_max = Math.min(resource_norm_max, side_max);
 
-                    console.log(pidx, sidx, resource, side_min, side_max);
+                    //console.log(pidx, sidx, resource, side_min, side_max);
                 }
                 recipe_min = Math.max(side_min, recipe_min);
                 recipe_max = Math.min(side_max, recipe_max);
@@ -452,7 +452,7 @@ export abstract class FactoryNode {
             resource_lims.push(resource_lims_entry);
             total_min += recipe_min;
             total_max += recipe_max;
-            console.log(pidx, total_min, total_max);
+            //console.log(pidx, total_min, total_max);
             if (total_min - 1e-6 > total_max) {
                 throw new Error("Impossible");
             }
@@ -491,21 +491,21 @@ export abstract class FactoryNode {
                     let resource_num = mul * part_sizes[pidx];
                     //Range that can be allocated
                     let resource_lim = resource_lims[pidx][sidx].get(resource)!;
-                    console.log(pidx, sidx, resource_num, resource_lim);
+                    //console.log(pidx, sidx, resource_num, resource_lim);
                     //Amount that needs to be allocated to any-s
                     let resource_free = resource_num - resource_lim[0];
                     comps.forEach((comp, cidx) => {
                         if (isNaN(comp)) {
                             let flow = flows_avail[sidx].get(resource)![cidx];
                             let new_flow = Math.min(flow, resource_free);
-                            console.log(pidx, sidx, resource, cidx, flow, new_flow);
+                            //console.log(pidx, sidx, resource, cidx, flow, new_flow);
                             resource_free -= new_flow;
                             flows_avail[sidx].get(resource)![cidx] -= new_flow;
 
                             comps[cidx] = new_flow;
                         } else {
                             let flow = flows_avail[sidx].get(resource)![cidx];
-                            console.log(pidx, sidx, resource, cidx, flow, comp);
+                            //console.log(pidx, sidx, resource, cidx, flow, comp);
                             flows_avail[sidx].get(resource)![cidx] -= comp;
                         }
                     });
@@ -513,11 +513,11 @@ export abstract class FactoryNode {
             });
         });
 
-        console.log(total_min, total_max);
-        console.log(part_requests);
-        console.log(resource_lims);
-        console.log(part_sizes);
-        console.log(parts);
+        //console.log(total_min, total_max);
+        //console.log(part_requests);
+        //console.log(resource_lims);
+        //console.log(part_sizes);
+        //console.log(parts);
         //return;
 
         let new_nodes = this.split_nodes(part_sizes);
@@ -718,6 +718,12 @@ export abstract class FactoryNode {
     abstract create_context_menu(): Array<HTMLDivElement>;
 
     static merge(parts: Array<FactoryNode>): FactoryNode | undefined {
+        //Convert parts to map
+        let part_map = new Map<FactoryNodeID, FactoryNode>();
+        parts.forEach(part => {
+            part_map.set(part.id, part);
+        });
+
         //Test for mergeability
         const first_node = parts[0];
 
@@ -730,6 +736,15 @@ export abstract class FactoryNode {
                 }
                 return false;
             })) {
+                //Remove internal stuff
+                parts.forEach(part => {
+                    part.io[1].get(first_node.resource)!.parts.forEach(flow => {
+                        if (part_map.has(flow.to)) {
+                            total -= flow.rate;
+                        }
+                    })
+                })
+
                 let merged_node = (new (Object.getPrototypeOf(first_node).constructor)(first_node.host, undefined, first_node.x, first_node.y, total, first_node.resource)) as FactoryLogistic;
 
                 merge_flow_in(parts.map(part => part.io[0]), merged_node.id);
@@ -1156,7 +1171,7 @@ export class FactoryComposite extends FactoryNode {
         //Create hubs for all the IOs
         let hubs: [{ [resource: string]: FactoryNodeID }, { [resource: string]: FactoryNodeID }] = [{}, {}];
         net_io.forEach((side, sidx) => {
-            for(const [resource, count] of Object.entries(side)) {
+            for (const [resource, count] of Object.entries(side)) {
                 let hub = new FactoryHub(host, undefined, 0, 0, count, resource);
                 all_parts.push(hub);
                 hubs[sidx][resource] = hub.id;
@@ -1179,11 +1194,11 @@ export class FactoryComposite extends FactoryNode {
                             (sidx == 1 && !part_map.has(flow.to))
                         ) {
                             //Outside - new node
-                            new FlowLine(host, flow.resource, flow.rate, 
+                            new FlowLine(host, flow.resource, flow.rate,
                                 (sidx == 0) ? flow.from : res.id, (sidx == 0) ? res.id : flow.to);
 
                             //Inner hub - inner node
-                            new FlowLine(host, flow.resource, flow.rate, 
+                            new FlowLine(host, flow.resource, flow.rate,
                                 (sidx == 0) ? hubs[sidx][resoure] : flow.from, (sidx == 0) ? flow.to : hubs[sidx][resoure]);
 
                             //Remove outside - inner node
