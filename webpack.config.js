@@ -36,7 +36,7 @@ module.exports = {
     },
     output: {
         filename: 'main.js',
-        path: path.resolve(__dirname, 'build'),
+        path: path.resolve(__dirname, 'docs'),
     },
     plugins: [
         // fix "process is not defined" error:
