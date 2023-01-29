@@ -646,13 +646,16 @@ export abstract class FactoryNode {
 
         let build_table = (io_idx: number, res_arr: Array<HTMLElement>) => {
             for (let [resource, flows] of this.io[io_idx]) {
+                let res_elem = createElem("div", ["factory-sidebar-io"], undefined, undefined);
+                res_arr.push(res_elem);
+                
                 let count_elem: HTMLElement;
                 let hub_bnt: HTMLElement;
-                res_arr.push(createElem("div", ["factory-sidebar-io-resource"], undefined, undefined, [
+                res_elem.appendChild(createElem("div", ["factory-sidebar-io-resource"], undefined, undefined, [
                     createElem("span", ["factory-sidebar-io-resource-name"], undefined, FACTORY_DATA.items[resource].name),
                     hub_bnt = createElem("button", ["factory-sidebar-io-resource-hub"], undefined, "Make hub")
                 ]));
-                res_arr.push(count_elem = createElem("div", ["factory-sidebar-io-resource-cnt"], undefined, "[0, 0] / " + num_to_str(flows.total)));
+                res_elem.appendChild(count_elem = createElem("div", ["factory-sidebar-io-resource-cnt"], undefined, "[0, 0] / " + num_to_str(flows.total)));
 
                 hub_bnt.addEventListener("click", () => {
                     let new_node = new FactoryHub(this.host, undefined, this.x + 200, this.y, flows.total, resource);
@@ -673,7 +676,7 @@ export abstract class FactoryNode {
                 let extraction_ratio = Array<number>(this.io[io_idx].get_always(resource).parts.length).fill(0);
                 extraction_ratios[io_idx].set(resource, extraction_ratio);
 
-                res_arr.push(createElem("table", ["factory-sidebar-io"], undefined, undefined, flows.parts.map((flow, idx) => {
+                res_elem.appendChild(createElem("table", ["factory-sidebar-io-flows"], undefined, undefined, flows.parts.map((flow, idx) => {
                     const btn_text = ["0", "?", "x", "*"];
                     const btn_vals = [0, NaN, undefined, flow.rate];
                     let btns = btn_text.map(caption => createElem("button", ["factory-sidebar-io-splitter"], undefined, caption));
