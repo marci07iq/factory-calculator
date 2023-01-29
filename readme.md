@@ -11,6 +11,7 @@ A production calculator and factors planner for Satisfactory
 - Group multiple nodes into one large "factory"
 - Split nodes to show multiple facilities producing the same product
 - Save graph
+- Multiple different tabs
 
 ## Usage
 
@@ -61,6 +62,5 @@ It should be reasonalby easy to adapt the software to other production based gam
 
 ### TODOs
 - Add UI to set up LP solver
-- Add UI for multiple tabs
-- Add import/export for save files
+- Make UI look nice
 - Adopt a game-neutral format for recipe input, to make chaning games easier
