@@ -21,12 +21,14 @@ class FactoryWindow {
         let save_button: HTMLButtonElement;
         let import_button: HTMLButtonElement;
         let export_button: HTMLButtonElement;
+        let delete_button: HTMLButtonElement;
 
         document.body.appendChild(this.elem_root = createElem("div", ["factory-root"], undefined, undefined, [
             this.elem_main_menu = createElem("div", ["factory-menu"], undefined, undefined, [
                 save_button = createElem("button", ["factory-menu-button"], undefined, "Save") as HTMLButtonElement,
                 import_button = createElem("button", ["factory-menu-button"], undefined, "Import") as HTMLButtonElement,
                 export_button = createElem("button", ["factory-menu-button"], undefined, "Export tab") as HTMLButtonElement,
+                delete_button = createElem("button", ["factory-menu-button"], undefined, "Delete tab") as HTMLButtonElement,
                 
             ]) as HTMLDivElement,
             this.elem_ribbon = createElem("div", ["factory-ribbon"]) as HTMLDivElement,
@@ -49,6 +51,13 @@ class FactoryWindow {
 
         export_button.addEventListener("click", () => {
             navigator.clipboard.writeText(JSON.stringify(this.tabs[this.selected].save()));
+            alert("Copied to clipboard");
+        });
+
+        delete_button.addEventListener("click", () => {
+            if(confirm("Confirm delete")) {
+                this.removeTab(this.selected);
+            }
         });
 
         this.tabs = [];
@@ -59,7 +68,8 @@ class FactoryWindow {
             let storage = localStorage.getItem("save-meta");
             if (storage !== null) {
                 let meta = JSON.parse(storage);
-                if ((meta.version ?? 0) == 2 && meta.save_id !== undefined) {
+                let meta_version = (meta.version ?? 0);
+                if ((meta_version == 2 || meta_version == 3) && meta.save_id !== undefined) {
                     let file = localStorage.getItem(meta.save_id);
                     if (file !== null) {
                         let savedata = JSON.parse(file);
@@ -70,6 +80,9 @@ class FactoryWindow {
                             }
                         })
                     }
+                }
+                else {
+                    alert("Unknown save version " + meta_version);
                 }
             }
         } catch (e) {
@@ -106,7 +119,8 @@ class FactoryWindow {
 
         if (current_save != null) {
             let meta = JSON.parse(current_save);
-            if (meta.version == 2) {
+            let meta_version = (meta.version ?? 0);
+            if (meta_version == 2 || meta_version == 3) {
                 let old_key = meta.save_id;
                 if (write_key == old_key) {
                     write_key = "save-loc-2";
@@ -120,42 +134,76 @@ class FactoryWindow {
         localStorage.setItem(write_key, JSON.stringify(save_data));
 
         //Write meta
-        localStorage.setItem("save-meta", JSON.stringify({ version: 2, save_id: write_key, selected: this.selected }));
+        localStorage.setItem("save-meta", JSON.stringify({ version: 3, save_id: write_key, selected: this.selected }));
     }
 
     selectTab(id: number) {
         this.selected = id;
-        this.elem_current.innerHTML = "";
-        this.elem_current.append(this.tabs[this.selected].htmls.root!);
 
+        this.elem_current.innerHTML = "";
         this.elem_ribbon_entries.forEach(elem => {
             elem.classList.remove("factory-ribbon-selected");
         })
-        this.elem_ribbon_entries[this.selected].classList.add("factory-ribbon-selected");
+        
+        if(this.selected >= 0) {
+            this.elem_current.append(this.tabs[this.selected].htmls.root!);
+            this.elem_ribbon_entries[this.selected].classList.add("factory-ribbon-selected");
+        }
+    }
+
+    updateRibbon() {
+        this.elem_ribbon.innerHTML = "";
+        this.elem_ribbon_entries = [];
+
+        this.tabs.forEach((tab, idx) => {
+            let ribbon_button = createElem("div", ["factory-ribbon-button"], undefined, tab.name) as HTMLDivElement;
+            ribbon_button.addEventListener("click", () => {
+                this.selectTab(idx);
+            });
+            ribbon_button.addEventListener("dblclick", () => {
+                let name = prompt("New name");
+                if(name !== null) {
+                    this.tabs[idx].name = name;
+                    this.updateRibbon();
+                }
+            });
+    
+            this.elem_ribbon_entries.push(ribbon_button);
+            this.elem_ribbon.appendChild(ribbon_button);
+        });
     }
 
     addTab(tab: FactoryTab): number {
         let new_id = this.tabs.length;
 
         this.tabs.push(tab);
-        let ribbon_button = createElem("div", ["factory-ribbon-button"], undefined, "Tab") as HTMLDivElement;
-        ribbon_button.addEventListener("click", () => {
-            this.selectTab(new_id);
-        });
-
-        this.elem_ribbon_entries.push(ribbon_button);
-        this.elem_ribbon.appendChild(ribbon_button);
+        
+        this.updateRibbon();
 
         this.selectTab(new_id);
         return new_id;
     }
+
+    removeTab(id: number) {
+        this.tabs.splice(id, 1);
+        
+        this.updateRibbon();
+
+        let select = this.selected;
+        if(select > id) {
+            select -= 1;
+        }
+        select = Math.min(select, this.tabs.length - 1);
+        this.selectTab(select);
+    }
 }
 
 declare global {
-    interface Window { factory: FactoryTab; }
+    interface Window { factory: FactoryWindow; }
 }
 
 window.addEventListener("load", () => {
     let main = new FactoryWindow();
+    window.factory = main;
     document.body.appendChild(main.elem_root);
 }); 
