@@ -31,6 +31,8 @@ export class FactoryTab {
     y: number = 0;
     zoom: number = 1;
 
+    name: string;
+
     selected_nodes: Array<FactoryNode> = [];
     drag_mode: "none" | "canvas" | "node" | "select" = "none";
 
@@ -51,7 +53,7 @@ export class FactoryTab {
             ]) as HTMLDivElement,
         ]) as HTMLDivElement;
 
-
+        this.name = "Unnamed";
 
         /*this.htmls.export_button.addEventListener("click", () => {
             navigator.clipboard.writeText(JSON.stringify(this.save()));
@@ -69,6 +71,10 @@ export class FactoryTab {
         });
 
         this.htmls.viewport!.addEventListener("mousedown", (ev) => {
+            let rect = this.htmls.viewport!.getBoundingClientRect();
+            let viewportX = (ev.clientX - rect.left);
+            let viewportY = (ev.clientY - rect.top);
+
             if (ev.button == 0) {
                 if (ev.target instanceof Node) {
                     if (!this.htmls.context_menu!.contains(ev.target)) {
@@ -79,8 +85,8 @@ export class FactoryTab {
                     if (ev.shiftKey) {
                         this.drag_mode = "select";
 
-                        last_x = ev.clientX;
-                        last_y = ev.clientY;
+                        last_x = viewportX;
+                        last_y = viewportY;
 
                         ev.stopPropagation();
                     } else {
@@ -90,8 +96,8 @@ export class FactoryTab {
                         }
                         this.drag_mode = "canvas";
 
-                        last_x = ev.clientX;
-                        last_y = ev.clientY;
+                        last_x = viewportX;
+                        last_y = viewportY;
 
                         ev.stopPropagation();
                     }
@@ -100,11 +106,15 @@ export class FactoryTab {
         });
 
         document.addEventListener("mouseup", (ev) => {
+            let rect = this.htmls.viewport!.getBoundingClientRect();
+            let viewportX = (ev.clientX - rect.left);
+            let viewportY = (ev.clientY - rect.top);
+
             if (this.drag_mode == "select") {
-                let first_x = (Math.min(ev.clientX, last_x) - this.x) / this.zoom;
-                let first_y = (Math.min(ev.clientY, last_y) - this.y) / this.zoom;
-                let second_x = (Math.max(ev.clientX, last_x) - this.x) / this.zoom;
-                let second_y = (Math.max(ev.clientY, last_y) - this.y) / this.zoom;
+                let first_x = (Math.min(viewportX, last_x) - this.x) / this.zoom;
+                let first_y = (Math.min(viewportY, last_y) - this.y) / this.zoom;
+                let second_x = (Math.max(viewportX, last_x) - this.x) / this.zoom;
+                let second_y = (Math.max(viewportY, last_y) - this.y) / this.zoom;
 
                 //Recalculate to client coordinates
 
@@ -122,14 +132,18 @@ export class FactoryTab {
         });
 
         document.addEventListener("mousemove", (ev) => {
-            let dx = (ev.clientX - last_x);
-            let dy = (ev.clientY - last_y);
+            let rect = this.htmls.viewport!.getBoundingClientRect();
+            let viewportX = (ev.clientX - rect.left);
+            let viewportY = (ev.clientY - rect.top);
+
+            let dx = (viewportX - last_x);
+            let dy = (viewportY - last_y);
 
             if (this.drag_mode == "select") {
                 ev.stopPropagation();
             } else {
-                last_x = ev.clientX;
-                last_y = ev.clientY;
+                last_x = viewportX;
+                last_y = viewportY;
             }
             if (this.drag_mode == "canvas") {
                 this.x += dx;
@@ -146,7 +160,6 @@ export class FactoryTab {
 
         this.htmls.viewport.onwheel = (ev) => {
             let rect = this.htmls.viewport!.getBoundingClientRect();
-
             let viewportX = (ev.clientX - rect.left);
             let viewportY = (ev.clientY - rect.top);
 
@@ -176,6 +189,7 @@ export class FactoryTab {
 
             if (this.selected_nodes.length == 1) {
                 sidebar_content.appendChild(createElem("div", ["factory-sidebar-header"], undefined, this.selected_nodes[0].get_name()));
+                sidebar_content.appendChild(createElem("div", ["factory-sidebar-context"], undefined, undefined, this.selected_nodes[0].create_context_menu()));
 
                 this.selected_nodes[0].create_sidebar_menu().forEach(node => {
                     sidebar_content.appendChild(node);
@@ -194,20 +208,23 @@ export class FactoryTab {
     }
 
     add_selected_node(node: FactoryNode, append: boolean) {
-        if (this.selected_nodes.indexOf(node) == -1) {
-            if (!append) {
-                this.clear_selected_nodes();
-            }
-            this.selected_nodes.push(node);
-            node.elem.classList.add("factory-node-selected");
-            node.io[0].forEachFlat(flow => {
-                flow.elem.classList.add("factory-flow-selected-i");
-            });
-            node.io[1].forEachFlat(flow => {
-                flow.elem.classList.add("factory-flow-selected-o");
-            });
+        //Make sure node actually exists
+        if (this.elems.get(node.id) === node) {
+            if (this.selected_nodes.indexOf(node) == -1) {
+                if (!append) {
+                    this.clear_selected_nodes();
+                }
+                this.selected_nodes.push(node);
+                node.elem.classList.add("factory-node-selected");
+                node.io[0].forEachFlat(flow => {
+                    flow.elem.classList.add("factory-flow-selected-i");
+                });
+                node.io[1].forEachFlat(flow => {
+                    flow.elem.classList.add("factory-flow-selected-o");
+                });
 
-            this.update_sidebar();
+                this.update_sidebar();
+            }
         }
     }
 
@@ -271,6 +288,8 @@ export class FactoryTab {
 
     save(): any {
         let res = {
+            version: 3,
+            name: this.name,
             nodes: new Array(),
             flows: new Array()
         };
@@ -285,14 +304,20 @@ export class FactoryTab {
     }
 
     load(data, mult: number = 1, remap: Map<FactoryNodeID, FactoryNodeID> | undefined = undefined): Array<FactoryNode> {
-        let remap2 = remap ?? new Map<FactoryNodeID, FactoryNodeID>();
-        let nodes = data.nodes.map(node => {
-            return FactoryNode.load(node, this, remap2, mult);
-        });
+        this.name = data.name ?? this.name;
 
-        data.flows.forEach(node => {
-            FlowLine.load(node, this, remap2, mult);
-        });
+        let nodes: Array<FactoryNode> = [];
+
+        if (data.version ?? 3 == 3) {
+            let remap2 = remap ?? new Map<FactoryNodeID, FactoryNodeID>();
+            nodes = data.nodes.map(node => {
+                return FactoryNode.load(node, this, remap2, mult);
+            });
+
+            data.flows.forEach(node => {
+                FlowLine.load(node, this, remap2, mult);
+            });
+        }
 
         return nodes;
     }
@@ -534,10 +559,15 @@ export function createTabSolution(solution: SolverResult): FactoryTab | undefine
 }
 
 export function createTabSavedata(data: any): FactoryTab | undefined {
-    let res = new FactoryTab();
     try {
-        res.load(data);
-        return res;
+        let data_version = (data.version ?? 2);
+        if (data_version == 2 || data_version == 3) {
+            let res = new FactoryTab();
+            res.load(data);
+            return res;
+        } else {
+            alert("Unknown save version " + data_version);
+        }
     } catch (e) {
         console.error(e);
         return undefined
@@ -547,10 +577,9 @@ export function createTabSavedata(data: any): FactoryTab | undefined {
 export function createTabSavestring(data: string): FactoryTab | undefined {
     let res = new FactoryTab();
     try {
-        res.load(JSON.parse(data));
-        return res;
+        return createTabSavedata(JSON.parse(data));
     } catch (e) {
         console.error(e);
-        return undefined
+        return undefined;
     }
 };

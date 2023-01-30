@@ -45,6 +45,11 @@ body {
     position: absolute;
     padding-top: 3px;
     border-top: 2px solid #ffffff;
+    pointer-events: none;
+}
+
+.factory-flow:hover .factory-flow-line {
+    border-top: 2px solid #08d3d3;
 }
 
 .factory-flow-selected-i .factory-flow-line {
@@ -63,8 +68,15 @@ body {
 }
 
 .factory-flow-text {
+    pointer-events: auto;
     color: white;
     position: absolute;
+    text-align: center;
+}
+
+.factory-flow-text-row {
+    pointer-events: auto;
+    white-space: nowrap;
 }
 
 .factory-node-selected {
@@ -194,14 +206,27 @@ body {
     background-color: #535353;
 }
 
+.factory-context-menu * {
+    color: white;
+}
+
 .factory-context-menu {
     position: absolute;
-    background: white;
-    outline: 2px solid black;
+    background: rgba(0.2, 0.2, 0.2, 0.5);
+    border: 1px solid white;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.factory-context-row {
+    border: 1px solid gray;
+    padding: 4px;
+    background: #202020;
+    margin: 4px;
 }
 
 .factory-context-row:hover {
-    background: lightgray;
+    background: #404040;
 }
 
 .factory-sidebar-io {

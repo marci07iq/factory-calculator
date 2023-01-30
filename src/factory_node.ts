@@ -30,7 +30,10 @@ export class FlowLine {
 
         this.elem = createElem("div", ["factory-flow"], undefined, undefined, [
             this.elem_line = createElem("div", ["factory-flow-line"]) as HTMLDivElement,
-            this.elem_text = createElem("div", ["factory-flow-text"], undefined, `${num_to_str(this.rate)} x ${FACTORY_DATA.items[this.resource].name}`) as HTMLDivElement,
+            this.elem_text = createElem("div", ["factory-flow-text"], undefined, undefined, [
+                createElem("div", ["factory-flow-text-row"], undefined, `${num_to_str(this.rate)}`) as HTMLDivElement,
+                createElem("div", ["factory-flow-text-row"], undefined, `${FACTORY_DATA.items[this.resource].name}`) as HTMLDivElement,
+            ]) as HTMLDivElement,
         ]) as HTMLDivElement;
         this.host.htmls.canvas_lines!.appendChild(this.elem);
 
@@ -43,6 +46,10 @@ export class FlowLine {
         this.update_position();
 
         this.elem_text.addEventListener("contextmenu", (ev) => {
+            let rect = this.host.htmls.viewport!.getBoundingClientRect();
+            let viewportX = (ev.clientX - rect.left);
+            let viewportY = (ev.clientY - rect.top);
+
             ev.preventDefault();
 
             let entry_hub = createElem("div", ["factory-context-row"], undefined, "Insert hub");
@@ -65,8 +72,8 @@ export class FlowLine {
             let menu = createElem("div", ["factory-context-menu"], undefined, undefined, [
                 entry_hub
             ]);
-            menu.style.left = `${ev.clientX}px`;
-            menu.style.top = `${ev.clientY}px`;
+            menu.style.left = `${viewportX}px`;
+            menu.style.top = `${viewportY}px`;
 
             this.host.htmls.context_menu!.innerHTML = "";
             this.host.htmls.context_menu!.appendChild(menu);
@@ -356,11 +363,15 @@ export abstract class FactoryNode {
         });
 
         this.elem_header.addEventListener("contextmenu", (ev: MouseEvent) => {
+            let rect = this.host.htmls.viewport!.getBoundingClientRect();
+            let viewportX = (ev.clientX - rect.left);
+            let viewportY = (ev.clientY - rect.top);
+
             ev.preventDefault();
 
             let menu = createElem("div", ["factory-context-menu"], undefined, undefined, this.create_context_menu());
-            menu.style.left = `${ev.clientX}px`;
-            menu.style.top = `${ev.clientY}px`;
+            menu.style.left = `${viewportX}px`;
+            menu.style.top = `${viewportY}px`;
 
             this.host.htmls.context_menu!.innerHTML = "";
             this.host.htmls.context_menu!.appendChild(menu);
@@ -648,7 +659,7 @@ export abstract class FactoryNode {
             for (let [resource, flows] of this.io[io_idx]) {
                 let res_elem = createElem("div", ["factory-sidebar-io"], undefined, undefined);
                 res_arr.push(res_elem);
-                
+
                 let count_elem: HTMLElement;
                 let hub_bnt: HTMLElement;
                 res_elem.appendChild(createElem("div", ["factory-sidebar-io-resource"], undefined, undefined, [
@@ -753,7 +764,7 @@ export abstract class FactoryNode {
         if (first_node instanceof FactoryLogistic) {
             let total = 0;
             if (parts.every(val => {
-                if (val instanceof FactoryLogistic && (val.get_type() == first_node.get_type()) && (first_node.resource == val.resource)) {
+                if ((val instanceof FactoryLogistic) && (val.get_type() == first_node.get_type()) && (first_node.resource == val.resource)) {
                     total += val.count;
                     return true;
                 }
@@ -790,7 +801,7 @@ export abstract class FactoryNode {
                 }
                 return false;
             })) {
-                let merged_node = new FactoryMachine(first_node.host, undefined, first_node.x, first_node.y, first_node.count, first_node.recipe);
+                let merged_node = new FactoryMachine(first_node.host, undefined, first_node.x, first_node.y, total, first_node.recipe);
 
                 merge_flow_in(parts.map(part => part.io[0]), merged_node.id);
                 merge_flow_out(parts.map(part => part.io[1]), merged_node.id);
@@ -1068,13 +1079,12 @@ export class FactoryMachine extends FactoryNode {
 export class FactoryComposite extends FactoryNode {
     name: string;
 
-    inner_data: string; //Same format as save files
-    inner_hubs: string; //JSON string of [{resource: id}, {resource: id}]
-    ratio_raw: string;
-
+    inner_data: any; //Same format as save files
+    inner_hubs: any; //[{resource: id}, {resource: id}]
+    ratio_raw: [{ [resource: string]: number }, { [resource: string]: number }];
     ratio_data: [Map<string, number>, Map<string, number>];
 
-    constructor(host: FactoryTab, id: FactoryNodeID | undefined, x: number, y: number, count: number, name: string, inner_data: string, inner_hubs: string, ratios: string) {
+    constructor(host: FactoryTab, id: FactoryNodeID | undefined, x: number, y: number, count: number, name: string, inner_data: any, inner_hubs: any, ratios: [{ [resource: string]: number }, { [resource: string]: number }] | string) {
         super(
             host,
             id,
@@ -1085,12 +1095,36 @@ export class FactoryComposite extends FactoryNode {
 
         this.name = name;
 
-        this.inner_data = inner_data;
-        this.inner_hubs = inner_hubs;
-        this.ratio_raw = ratios;
+        if (typeof inner_data == "string") {
+            this.inner_data = JSON.parse(inner_data);
+            this.inner_data.version = 3;
+        } else {
+            this.inner_data = inner_data;
+        }
+        this.inner_hubs = (typeof inner_hubs == "string") ? JSON.parse(inner_hubs) : inner_hubs;
+        this.ratio_raw = ((typeof ratios == "string") ? JSON.parse(ratios) : ratios) as [{ [resource: string]: number }, { [resource: string]: number }];
+
+        let v2_v3_upgrade = (data) => {
+            data.nodes.forEach(node => {
+                if (node.type == "composite") {
+                    if (typeof node.inner_data == "string") {
+                        node.inner_data = JSON.parse(node.inner_data);
+                        node.inner_data.version = 3;
+                        v2_v3_upgrade(node.inner_data);
+                    }
+                    if (typeof node.inner_hubs == "string") {
+                        node.inner_hubs = JSON.parse(node.inner_hubs);
+                    }
+                    if (typeof node.ratio_raw == "string") {
+                        node.ratio_raw = JSON.parse(node.ratio_raw);
+                    }
+                }
+            });
+        }
+        v2_v3_upgrade(this.inner_data);
 
         this.ratio_data = [new Map<string, number>(), new Map<string, number>()];
-        (JSON.parse(ratios) as [{ [resource: string]: number }, { [resource: string]: number }]).forEach((ratio, ridx) => {
+        this.ratio_raw.forEach((ratio, ridx) => {
             for (const [key, val] of Object.entries(ratio)) {
                 this.ratio_data[ridx].set(key, val);
             }
@@ -1205,7 +1239,7 @@ export class FactoryComposite extends FactoryNode {
         let res = new FactoryComposite(
             parts[0].host, undefined,
             parts[0].x, parts[0].y, 1,
-            "Undefined", "", "", JSON.stringify(net_io));
+            "Undefined", "", "", net_io);
 
         //Re-connect internal nodes to hubs
         parts.forEach(part => {
@@ -1233,6 +1267,7 @@ export class FactoryComposite extends FactoryNode {
         });
 
         let save_data = {
+            version: 3,
             nodes: new Array(),
             flows: new Array()
         };
@@ -1243,8 +1278,8 @@ export class FactoryComposite extends FactoryNode {
             });
         });
 
-        res.inner_data = JSON.stringify(save_data);
-        res.inner_hubs = JSON.stringify(hubs);
+        res.inner_data = save_data;
+        res.inner_hubs = hubs;
 
         //Wipe internals
         all_parts.forEach(elem => {
