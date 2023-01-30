@@ -2,7 +2,7 @@
 
 Click [here](https://marci07iq.github.io/factory-calculator/) to open latest stable deployment.
 
-A production calculator and factors planner for Satisfactory
+A production calculator and factory planner for Satisfactory
 
 ## Features
 
@@ -10,10 +10,10 @@ A production calculator and factors planner for Satisfactory
 - Fully re-arrangable flow graph editor
 - Group multiple nodes into one large "factory"
 - Split nodes to show multiple facilities producing the same product
-- Save graph
+- Save, import and export flow graph
 - Multiple different tabs
 
-## Usage
+# Usage
 
 - Simple UI features
   - Left click background to drag canvas
@@ -30,7 +30,8 @@ A production calculator and factors planner for Satisfactory
   - If identical types, trivially merge
   - If different types, merge into composite factory node
 
-### Splitting
+## Splitting
+
 To split a node in the flow graph into two, you need to select the composition of one of the parts. For each input/output flow, you can define how much of it should end up in one half of the split, using the buttons next to the flow:
 - `0`: None of this flow should end up in the extracted node
 - `?`: Any amount can end up in the extracted node
@@ -44,7 +45,7 @@ For the best experience, choose one in/output resource type that you would like 
 
 Experiment freely. The graph is not saved until you click the save button. Simply reloading the tab will undo any unsaved progress.
 
-## Development
+# Development
 
 - Download code
 - Install required npm packages (todo: provide list)
@@ -53,14 +54,16 @@ Experiment freely. The graph is not saved until you click the save button. Simpl
 - Run `npx parse-docs -i .\src\Docs.json -o .\src\data.json -f`
 - Run `webpack` to build
 
-### Updating game version
+## Updating game version
+
 To update to a new version of the game, locate the new `Docs.json`, and repeat the above steps
 
-### Adapting for other games
+## Adapting for other games
 
 It should be reasonalby easy to adapt the software to other production based games. You need to obtain a data file describing the items and recipes in the game, and convert it to the same format output by the Satisfactory docs parser node module.
 
-### TODOs
+## TODOs
+
 - Add UI to set up LP solver
 - Make UI look nice
 - Adopt a game-neutral format for recipe input, to make chaning games easier

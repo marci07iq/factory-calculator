@@ -1121,7 +1121,9 @@ export class FactoryComposite extends FactoryNode {
                 }
             });
         }
-        v2_v3_upgrade(this.inner_data);
+        if(this.inner_data !== undefined) {
+            v2_v3_upgrade(this.inner_data);
+        }
 
         this.ratio_data = [new Map<string, number>(), new Map<string, number>()];
         this.ratio_raw.forEach((ratio, ridx) => {
@@ -1239,7 +1241,7 @@ export class FactoryComposite extends FactoryNode {
         let res = new FactoryComposite(
             parts[0].host, undefined,
             parts[0].x, parts[0].y, 1,
-            "Undefined", "", "", net_io);
+            "Unnamed", undefined, undefined, net_io);
 
         //Re-connect internal nodes to hubs
         parts.forEach(part => {
