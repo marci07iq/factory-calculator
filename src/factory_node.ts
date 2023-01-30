@@ -1080,7 +1080,7 @@ export class FactoryComposite extends FactoryNode {
     name: string;
 
     inner_data: any; //Same format as save files
-    inner_hubs: any; //[{resource: id}, {resource: id}]
+    inner_hubs: [{ [resource: string]: FactoryNodeID }, { [resource: string]: FactoryNodeID }];
     ratio_raw: [{ [resource: string]: number }, { [resource: string]: number }];
     ratio_data: [Map<string, number>, Map<string, number>];
 
@@ -1291,13 +1291,13 @@ export class FactoryComposite extends FactoryNode {
     unpack() {
         //Load inner data
         let remap = new Map<FactoryNodeID, FactoryNodeID>();
-        let new_nodes = this.host.load(JSON.parse(this.inner_data), this.count, remap);
+        let new_nodes = this.host.load(this.inner_data, this.count, remap);
         new_nodes.forEach(node => {
             node.set_position(this.x, this.y);
         });
 
         //Parse IO hubs
-        let hubs = JSON.parse(this.inner_hubs) as [{ [resource: string]: FactoryNodeID }, { [resource: string]: FactoryNodeID }];
+        let hubs = this.inner_hubs;
 
         //Connect external flows into hubs
         this.io.forEach((side, sidx) => {

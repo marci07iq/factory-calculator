@@ -2,5 +2,3 @@ node_modules*
 package-lock.json
 src/Docs.json
 src/data.json
-docs
-docs/*
