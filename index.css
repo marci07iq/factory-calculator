@@ -198,11 +198,11 @@ body {
     color: white;
 }
 
-.factory-tab-sidebar-content button {
+.factory-context-button {
     background-color: #2e2e2e;
 }
 
-.factory-tab-sidebar-content button:hover {
+.factory-context-button:hover {
     background-color: #535353;
 }
 
@@ -214,20 +214,11 @@ body {
     position: absolute;
     background: rgba(0.2, 0.2, 0.2, 0.5);
     border: 1px solid white;
-    border-radius: 8px;
+    border-radius: 0px 8px 8px 8px;
     padding: 8px;
 }
 
-.factory-context-row {
-    border: 1px solid gray;
-    padding: 4px;
-    background: #202020;
-    margin: 4px;
-}
-
-.factory-context-row:hover {
-    background: #404040;
-}
+.factory-context-row {}
 
 .factory-sidebar-io {
     padding-top: 8px;
@@ -243,7 +234,6 @@ body {
 
 .factory-sidebar-io-header {
     margin-bottom: 8px;
-    margin-top: 16px;
     border-bottom: 1px solid;
 }
 
@@ -286,4 +276,84 @@ body {
 .factory-tab-header {
     background: darkorange;
     padding: 8px;
+}
+
+.factory-sidebar-entry {
+    margin-top: 16px;
+}
+
+.factory-popup {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+
+.factory-popup-bg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: black;
+    opacity: 0.5;
+}
+
+.factory-popup-main {
+    position: absolute;
+    width: calc(100% - 100px);
+    height: calc(100% - 100px);
+    background: black;
+    opacity: 1;
+    border: 2px solid white;
+    border-radius: 16px;
+    border-top-right-radius: 0px;
+    overflow: clip;
+    padding: 16px;
+    padding-top: 32px;
+    box-sizing: border-box;
+    margin: 50px;
+}
+
+.factory-popup-main * {
+    color: white;
+}
+
+.factory-popup-close {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    width: 24px;
+    height: 24px;
+    background: none;
+    border: none
+}
+
+.factory-popup-close:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.factory-textbox {
+    background-color: #2e2e2e;
+}
+
+.factory-textbox:hover {
+    background-color: #535353;
+}
+
+.factory-solver-ios {
+    display: flex;
+}
+
+.factory-solver-io {
+    flex: 1;
+    flex-direction: column;
+    display: flex;
+    max-width: 400px;
+}
+
+.factory-solver-io-input {
+    width: 50px;
+}
+
+.factory-solver-title {
+    text-align: center;
+    font-size: 1.2em;
 }

@@ -15,7 +15,7 @@ export interface SolverResult {
 
 export type SolverOperation = "max_points" | "min_waste";
 
-export function solve_factory(input_limits: Map<string, number>, output_needs: Map<string, number>, task: SolverOperation) {
+export function solve_factory(input_limits: Map<string, [number, number]>, recipe_needs: Map<string, [number, number]>, output_needs: Map<string, [number, number]>, task: SolverOperation) {
     let model: IModel<string, string, string>;
 
     if (task == "max_points") {
@@ -37,18 +37,32 @@ export function solve_factory(input_limits: Map<string, number>, output_needs: M
     }
 
     input_limits.forEach((limit, resource) => {
-        if(!isNaN(limit)) {
-            model.constraints[resource] = { max: limit };
-        } else {
-            model.constraints[resource] = { };
+        model.constraints[resource] = { };
+        if(!isNaN(limit[0])) {
+            model.constraints[resource]!["min"] = limit[0];
+        }
+        if(!isNaN(limit[1])) {
+            model.constraints[resource]!["max"] = limit[1];
+        }
+    });
+
+    recipe_needs.forEach((limit, resource) => {
+        model.constraints[resource] = { };
+        if(!isNaN(limit[0])) {
+            model.constraints[resource]!["min"] = limit[0];
+        }
+        if(!isNaN(limit[1])) {
+            model.constraints[resource]!["max"] = limit[1];
         }
     });
 
     output_needs.forEach((limit, resource) => {
-        if(!isNaN(limit)) {
-            model.constraints[resource] = { min: limit };
-        } else {
-            model.constraints[resource] = { };
+        model.constraints[resource] = { };
+        if(!isNaN(limit[0])) {
+            model.constraints[resource]!["max"] = -limit[0];
+        }
+        if(!isNaN(limit[1])) {
+            model.constraints[resource]!["min"] = -limit[1];
         }
     });
     
@@ -94,7 +108,11 @@ export function solve_factory(input_limits: Map<string, number>, output_needs: M
 
     }
 
+    console.log(model);
+
     const result = Solve(model);
+
+    console.log(result);
 
     let res: SolverResult = {
         feasible: Boolean(result.feasible),

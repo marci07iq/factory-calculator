@@ -124,7 +124,7 @@ export class FactoryTab {
                 this.elems.forEach((elem => {
                     if (first_x <= elem.x && elem.x <= second_x &&
                         first_y <= elem.y && elem.y <= second_y) {
-                        this.add_selected_node(elem, true);
+                        this.add_selected_node(elem, "append");
                     }
                 }))
             }
@@ -159,6 +159,7 @@ export class FactoryTab {
         });
 
         this.htmls.viewport.onwheel = (ev) => {
+            this.htmls.context_menu!.innerHTML = "";
             let rect = this.htmls.viewport!.getBoundingClientRect();
             let viewportX = (ev.clientX - rect.left);
             let viewportY = (ev.clientY - rect.top);
@@ -180,40 +181,24 @@ export class FactoryTab {
 
     update_sidebar() {
         this.htmls.sidebar!.innerHTML = "";
-        if (this.selected_nodes.length >= 1) {
-
-            let sidebar_content: HTMLElement;
-            this.htmls.sidebar!.appendChild(createElem("div", ["factory-tab-sidebar"], undefined, undefined, [
-                sidebar_content = createElem("div", ["factory-tab-sidebar-content"], undefined, undefined)
-            ]));
-
-            if (this.selected_nodes.length == 1) {
-                sidebar_content.appendChild(createElem("div", ["factory-sidebar-header"], undefined, this.selected_nodes[0].get_name()));
-                sidebar_content.appendChild(createElem("div", ["factory-sidebar-context"], undefined, undefined, this.selected_nodes[0].create_context_menu()));
-
-                this.selected_nodes[0].create_sidebar_menu().forEach(node => {
-                    sidebar_content.appendChild(node);
-                })
-            }
-            else {
-                sidebar_content.appendChild(createElem("div", ["factory-sidebar-entry"], undefined, undefined, [0].map(() => {
-                    let btn = sidebar_content.appendChild(createElem("button", ["factory-sidebar-button"], undefined, "Merge"))
-                    btn.addEventListener("click", () => {
-                        FactoryNode.merge(this.selected_nodes);
-                    })
-                    return btn;
-                })));
-            }
-        }
+        let entry = FactoryNode.create_sidebar(this.selected_nodes);
+        if(entry !== undefined) {
+            this.htmls.sidebar!.appendChild(entry);
+        };
     }
 
-    add_selected_node(node: FactoryNode, append: boolean) {
+    add_selected_node(node: FactoryNode, mode: "replace" | "append" | "interact") {
         //Make sure node actually exists
         if (this.elems.get(node.id) === node) {
-            if (this.selected_nodes.indexOf(node) == -1) {
-                if (!append) {
-                    this.clear_selected_nodes();
-                }
+            //New node
+            let is_new = this.selected_nodes.indexOf(node) == -1;
+
+            //If replacing, or interacting with an unknwon node
+            if (mode === "replace" || ((mode === "interact") && is_new)) {
+                this.clear_selected_nodes();
+                is_new = true;
+            }
+            if (is_new) {
                 this.selected_nodes.push(node);
                 node.elem.classList.add("factory-node-selected");
                 node.io[0].forEachFlat(flow => {
@@ -225,6 +210,7 @@ export class FactoryTab {
 
                 this.update_sidebar();
             }
+
         }
     }
 
@@ -351,7 +337,7 @@ export function createTabSolution(solution: SolverResult): FactoryTab | undefine
                 res_factory,
                 undefined,
                 0, 0,
-                Math.max(item_cnt[1], item_cnt[0]), item_key
+                Math.max(item_cnt[1], item_cnt[0]), true, item_key
             );
             hub_nodes.set(item_key, hub_node.id);
 
@@ -364,7 +350,7 @@ export function createTabSolution(solution: SolverResult): FactoryTab | undefine
                         res_factory,
                         undefined,
                         0, 0,
-                        -delta, item_key
+                        -delta, true, item_key
                     );
                     new FlowLine(res_factory, item_key, -delta, node.id, hub_node.id);
                     //Sunk
@@ -374,7 +360,7 @@ export function createTabSolution(solution: SolverResult): FactoryTab | undefine
                         res_factory,
                         undefined,
                         0, 0,
-                        delta, item_key
+                        delta, true, item_key
                     );
                     new FlowLine(res_factory, item_key, delta, hub_node.id, node.id);
                 }
@@ -408,7 +394,7 @@ export function createTabSolution(solution: SolverResult): FactoryTab | undefine
                     res_factory,
                     undefined,
                     0, 0,
-                    recipe_cnt,
+                    recipe_cnt, true,
                     recipe_key,
                 )
 
@@ -498,7 +484,7 @@ export function createTabSolution(solution: SolverResult): FactoryTab | undefine
             });
 
             //Pick one to do
-            if (!work_done) {
+            if (work_left && !work_done) {
                 //Find best node with most ins
                 let max_y_cnt = 0;
                 let min_y_deficit = Infinity;

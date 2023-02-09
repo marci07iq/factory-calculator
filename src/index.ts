@@ -4,10 +4,11 @@ import { createTabSavedata, createTabSavestring, createTabSolution, FactoryTab }
 import { createElem } from "./utils";
 import { solve_factory } from "./solver";
 import { FactoryHub, FactoryMachine, FactoryNodeID, FactorySink, FactorySource, FlowLine } from "./factory_node";
+import { SolverConfig } from "./solver_config";
 
 //console.log(model);
 
-class FactoryWindow {
+export class FactoryWindow {
     tabs: Array<FactoryTab> = [];
     selected: number = 0;
 
@@ -22,6 +23,7 @@ class FactoryWindow {
         let import_button: HTMLButtonElement;
         let export_button: HTMLButtonElement;
         let delete_button: HTMLButtonElement;
+        let new_button: HTMLButtonElement;
 
         document.body.appendChild(this.elem_root = createElem("div", ["factory-root"], undefined, undefined, [
             this.elem_main_menu = createElem("div", ["factory-menu"], undefined, undefined, [
@@ -29,6 +31,7 @@ class FactoryWindow {
                 import_button = createElem("button", ["factory-menu-button"], undefined, "Import") as HTMLButtonElement,
                 export_button = createElem("button", ["factory-menu-button"], undefined, "Export tab") as HTMLButtonElement,
                 delete_button = createElem("button", ["factory-menu-button"], undefined, "Delete tab") as HTMLButtonElement,
+                new_button = createElem("button", ["factory-menu-button"], undefined, "New tab") as HTMLButtonElement,
                 
             ]) as HTMLDivElement,
             this.elem_ribbon = createElem("div", ["factory-ribbon"]) as HTMLDivElement,
@@ -58,6 +61,10 @@ class FactoryWindow {
             if(confirm("Confirm delete")) {
                 this.removeTab(this.selected);
             }
+        });
+
+        new_button.addEventListener("click", () => {
+            this.newTab();
         });
 
         this.tabs = [];
@@ -92,23 +99,25 @@ class FactoryWindow {
         //No tabs: create default
         if (this.tabs.length == 0) {
             //Set up limits
-            let map_limits = new Map<string, number>();
+            /*let map_limits = new Map<string, [number, number]>();
             for (const [resource, desc] of Object.entries(FACTORY_DATA.resources)) {
-                map_limits.set(resource, desc.maxExtraction ?? NaN);
+                map_limits.set(resource, [NaN, desc.maxExtraction ?? NaN]);
             }
-            map_limits.set('Desc_Water_C', NaN);
+            map_limits.set('Desc_Water_C', [NaN, NaN]);
 
             //Solve
             let new_tab = createTabSolution(solve_factory(
                 map_limits,
-                new Map<string, number>([
-                    ["Recipe_NuclearReactorUranium", 50.4]
+                new Map<string, [number, number]>([
+                    ["Recipe_NuclearReactorUranium", [50.4, NaN]]
                 ]),
+                new Map([]),
                 "max_points"));
 
             if (new_tab !== undefined) {
                 this.addTab(new_tab);
-            }
+            }*/
+            this.newTab();
         }
     }
 
@@ -135,6 +144,14 @@ class FactoryWindow {
 
         //Write meta
         localStorage.setItem("save-meta", JSON.stringify({ version: 3, save_id: write_key, selected: this.selected }));
+    }
+
+    newTab() {
+        let config = new SolverConfig(this);
+        let popup = this.addPopup(config.elem);
+        config.on_done = () => {
+            this.removePopup(popup);
+        }
     }
 
     selectTab(id: number) {
@@ -195,6 +212,33 @@ class FactoryWindow {
         }
         select = Math.min(select, this.tabs.length - 1);
         this.selectTab(select);
+    }
+
+    addPopup(elem) {
+        let elem_main: HTMLElement;
+
+        let elem_blocker: HTMLElement;
+        let elem_popup: HTMLElement;
+        let elem_close: HTMLElement;
+
+        this.elem_root.appendChild(elem_main = createElem("div", ["factory-popup"], undefined, undefined, [
+            elem_blocker = createElem("div", ["factory-popup-bg"], undefined, undefined, [
+            ]),
+            elem_popup = createElem("div", ["factory-popup-main"], undefined, undefined, [
+                elem_close = createElem("button", ["factory-popup-close"], undefined, "X", []),
+                elem,
+            ]),
+        ]));
+
+        elem_close.addEventListener("click", () => {
+            this.removePopup(elem_main);
+        });
+
+        return elem_main;
+    }
+
+    removePopup(popup) {
+        this.elem_root.removeChild(popup);
     }
 }
 

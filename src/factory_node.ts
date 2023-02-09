@@ -9,6 +9,8 @@ export type FactoryNodeID = number;
 export class FlowLine {
     readonly host: FactoryTab;
 
+    readonly active: boolean;
+
     readonly resource: string;
     readonly rate: number;
 
@@ -52,22 +54,25 @@ export class FlowLine {
 
             ev.preventDefault();
 
-            let entry_hub = createElem("div", ["factory-context-row"], undefined, "Insert hub");
-            entry_hub.addEventListener("click", () => {
-                this.host.htmls.context_menu!.innerHTML = "";
+            let entry_hub = createElem("div", ["factory-context-row"], undefined, undefined, [0].map(() => {
+                let btn = createElem("button", ["factory-context-button"], undefined, "Insert hub");
+                btn.addEventListener("click", () => {
+                    this.host.htmls.context_menu!.innerHTML = "";
 
-                // bottom right
-                const x1 = this.host.elems.get(this.from)!.x;
-                const y1 = this.host.elems.get(this.from)!.y;
-                // top right
-                const x2 = this.host.elems.get(this.to)!.x;
-                const y2 = this.host.elems.get(this.to)!.y;
+                    // bottom right
+                    const x1 = this.host.elems.get(this.from)!.x;
+                    const y1 = this.host.elems.get(this.from)!.y;
+                    // top right
+                    const x2 = this.host.elems.get(this.to)!.x;
+                    const y2 = this.host.elems.get(this.to)!.y;
 
-                let hub = new FactoryHub(this.host, undefined, (x1 + x2) / 2, (y1 + y2) / 2, this.rate, this.resource);
-                new FlowLine(this.host, this.resource, this.rate, this.from, hub.id);
-                new FlowLine(this.host, this.resource, this.rate, hub.id, this.to);
-                this.host.remove_flow(this);
-            });
+                    let hub = new FactoryHub(this.host, undefined, (x1 + x2) / 2, (y1 + y2) / 2, this.rate, this.active, this.resource);
+                    new FlowLine(this.host, this.resource, this.rate, this.from, hub.id);
+                    new FlowLine(this.host, this.resource, this.rate, hub.id, this.to);
+                    this.host.remove_flow(this);
+                });
+                return btn;
+            }));
 
             let menu = createElem("div", ["factory-context-menu"], undefined, undefined, [
                 entry_hub
@@ -93,8 +98,16 @@ export class FlowLine {
         const cx = ((x1 + x2) / 2) - (length / 2);
         const cy = ((y1 + y2) / 2);
         // angle
-        var angle = Math.atan2((y1 - y2), (x1 - x2)) * (180 / Math.PI);
-        // make hr
+        const angle = Math.atan2((y1 - y2), (x1 - x2)) * (180 / Math.PI);
+
+        const active = this.host.elems.get(this.from)!.active && this.host.elems.get(this.to)!.active;
+
+        if (active) {
+            this.elem.classList.remove("factory-flow-inactive");
+        } else {
+            this.elem.classList.add("factory-flow-inactive")
+        }
+
         this.elem_line.style.left = `${cx}px`;
         this.elem_line.style.top = `${cy}px`;
         this.elem_line.style.width = `${length}px`;
@@ -323,6 +336,8 @@ export abstract class FactoryNode {
     host: FactoryTab;
     id: FactoryNodeID;
 
+    active: boolean;
+
     io: [ProcessingIO, ProcessingIO];
 
     //For rendering
@@ -335,9 +350,12 @@ export abstract class FactoryNode {
 
     count: number;
 
-    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number) {
+    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, active: boolean) {
         this.host = host;
         this.io = [new ProcessingIO(), new ProcessingIO()];
+
+        this.active = active;
+
         this.count = count;
 
         this.elem = createElem(
@@ -352,29 +370,52 @@ export abstract class FactoryNode {
         ) as HTMLDivElement;
         this.set_position(x, y);
 
+        let down_x, down_y;
+
         this.elem_header.addEventListener("mousedown", (ev: MouseEvent) => {
             if (ev.target == this.elem_header) {
                 if (ev.button == 0) {
                     ev.preventDefault();
-                    this.host.add_selected_node(this, ev.ctrlKey);
+                    this.host.add_selected_node(this, ev.ctrlKey ? "append" : "interact");
                     this.host.drag_mode = "node";
+
+                    down_x = ev.clientX;
+                    down_y = ev.clientY;
+                }
+            }
+        });
+
+        this.elem_header.addEventListener("click", (ev: MouseEvent) => {
+            if (ev.target == this.elem_header) {
+                if (ev.button == 0) {
+                    if (Math.abs(ev.clientX - down_x) < 2 && Math.abs(ev.clientY - down_y) < 2) {
+                        ev.preventDefault();
+                        this.host.add_selected_node(this, ev.ctrlKey ? "append" : "replace");
+                    }
                 }
             }
         });
 
         this.elem_header.addEventListener("contextmenu", (ev: MouseEvent) => {
+            this.host.add_selected_node(this, "interact");
+
             let rect = this.host.htmls.viewport!.getBoundingClientRect();
             let viewportX = (ev.clientX - rect.left);
             let viewportY = (ev.clientY - rect.top);
 
             ev.preventDefault();
 
-            let menu = createElem("div", ["factory-context-menu"], undefined, undefined, this.create_context_menu());
-            menu.style.left = `${viewportX}px`;
-            menu.style.top = `${viewportY}px`;
+            let content = FactoryNode.create_context(this.host.selected_nodes);
 
             this.host.htmls.context_menu!.innerHTML = "";
-            this.host.htmls.context_menu!.appendChild(menu);
+            if (content.length > 0) {
+                let menu = createElem("div", ["factory-context-menu"], undefined, undefined, content);
+                menu.style.left = `${viewportX}px`;
+                menu.style.top = `${viewportY}px`;
+
+                this.host.htmls.context_menu!.appendChild(menu);
+            }
+
             return false;
         });
 
@@ -622,23 +663,23 @@ export abstract class FactoryNode {
     abstract get_name(): string;
     abstract get_type(): FactoryNodeType;
 
-    static load(data, host: FactoryTab, remap: Map<FactoryNodeID, FactoryNodeID>, mult: number = 1): FactoryNode {
+    static load(data, host: FactoryTab, remap: Map<FactoryNodeID, FactoryNodeID>, mult: number = 1, active: boolean = true): FactoryNode {
         let res: FactoryNode;
         switch (data.type as FactoryNodeType) {
             case "source":
-                res = new FactorySource(host, undefined, data.x, data.y, data.count * mult, data.resource);
+                res = new FactorySource(host, undefined, data.x, data.y, data.count * mult, (data.active ?? true) && active, data.resource);
                 break;
             case "sink":
-                res = new FactorySink(host, undefined, data.x, data.y, data.count * mult, data.resource);
+                res = new FactorySink(host, undefined, data.x, data.y, data.count * mult, (data.active ?? true) && active, data.resource);
                 break;
             case "hub":
-                res = new FactoryHub(host, undefined, data.x, data.y, data.count * mult, data.resource);
+                res = new FactoryHub(host, undefined, data.x, data.y, data.count * mult, (data.active ?? true) && active, data.resource);
                 break;
             case "machine":
-                res = new FactoryMachine(host, undefined, data.x, data.y, data.count * mult, data.recipe);
+                res = new FactoryMachine(host, undefined, data.x, data.y, data.count * mult, (data.active ?? true) && active, data.recipe);
                 break;
             case "composite":
-                res = new FactoryComposite(host, undefined, data.x, data.y, data.count * mult, data.name, data.inner_data, data.inner_hubs, data.ratio_raw);
+                res = new FactoryComposite(host, undefined, data.x, data.y, data.count * mult, (data.active ?? true) && active, data.name, data.inner_data, data.inner_hubs, data.ratio_raw);
                 break;
         }
         remap.set(data.id, res.id);
@@ -646,7 +687,55 @@ export abstract class FactoryNode {
     }
     abstract save();
 
-    create_sidebar_menu(): Array<HTMLElement> {
+    static create_sidebar(parts: Array<FactoryNode>): HTMLElement | undefined {
+        let res: HTMLElement | undefined = undefined;
+
+        if (parts.length >= 1) {
+            let sidebar_content: HTMLElement;
+            res = createElem("div", ["factory-tab-sidebar"], undefined, undefined, [
+                sidebar_content = createElem("div", ["factory-tab-sidebar-content"], undefined, undefined)
+            ]);
+
+            if (parts.length == 1) {
+                let part = parts[0];
+
+                sidebar_content.appendChild(createElem("div", ["factory-sidebar-header"], undefined, part.get_name()));
+                sidebar_content.appendChild(createElem("div", ["factory-sidebar-context", "factory-sidebar-entry"], undefined, undefined, FactoryNode.create_context(parts)));
+
+                part.create_sidebar_entries().forEach(node => {
+                    sidebar_content.appendChild(node);
+                })
+            }
+            else {
+                sidebar_content.appendChild(createElem("div", ["factory-sidebar-header"], undefined, parts.length + " nodes selected"));
+                sidebar_content.appendChild(createElem("div", ["factory-sidebar-context", "factory-sidebar-entry"], undefined, undefined, FactoryNode.create_context(parts)));
+            }
+        }
+
+        return res;
+    }
+    static create_context(parts: Array<FactoryNode>): Array<HTMLElement> {
+        let res: Array<HTMLElement> = [];
+
+        if (parts.length >= 1) {
+
+            if (parts.length == 1) {
+                return parts[0].create_context_entries();
+            } else {
+                res.push(createElem("div", ["factory-context-row"], undefined, undefined, [0].map(() => {
+                    let btn = createElem("button", ["factory-context-button"], undefined, "Merge");
+                    btn.addEventListener("click", () => {
+                        FactoryNode.merge(parts);
+                    })
+                    return btn;
+                })));
+            }
+        }
+
+        return res;
+    }
+
+    create_sidebar_entries(): Array<HTMLElement> {
         //let extraction_ratios = [Array<number>(this.in.flows.length).fill(0), Array<number>(this.out.flows.length).fill(0)];
         let extraction_ratios: [Map<string, Array<number>>, Map<string, Array<number>>] = [
             new Map<string, Array<number>>(),
@@ -664,12 +753,12 @@ export abstract class FactoryNode {
                 let hub_bnt: HTMLElement;
                 res_elem.appendChild(createElem("div", ["factory-sidebar-io-resource"], undefined, undefined, [
                     createElem("span", ["factory-sidebar-io-resource-name"], undefined, FACTORY_DATA.items[resource].name),
-                    hub_bnt = createElem("button", ["factory-sidebar-io-resource-hub"], undefined, "Make hub")
+                    hub_bnt = createElem("button", ["factory-sidebar-io-resource-hub", "factory-context-button"], undefined, "Make hub")
                 ]));
                 res_elem.appendChild(count_elem = createElem("div", ["factory-sidebar-io-resource-cnt"], undefined, "[0, 0] / " + num_to_str(flows.total)));
 
                 hub_bnt.addEventListener("click", () => {
-                    let new_node = new FactoryHub(this.host, undefined, this.x + 200, this.y, flows.total, resource);
+                    let new_node = new FactoryHub(this.host, undefined, this.x + 200, this.y, flows.total, this.active, resource);
                     //Hub -> dst
                     flows.parts.forEach((flow, idx) => {
                         new FlowLine(this.host, flow.resource, flow.rate, (io_idx == 0) ? flow.from : new_node.id, (io_idx == 0) ? new_node.id : flow.to);
@@ -690,7 +779,7 @@ export abstract class FactoryNode {
                 res_elem.appendChild(createElem("table", ["factory-sidebar-io-flows"], undefined, undefined, flows.parts.map((flow, idx) => {
                     const btn_text = ["0", "?", "x", "*"];
                     const btn_vals = [0, NaN, undefined, flow.rate];
-                    let btns = btn_text.map(caption => createElem("button", ["factory-sidebar-io-splitter"], undefined, caption));
+                    let btns = btn_text.map(caption => createElem("button", ["factory-sidebar-io-splitter", "factory-context-button"], undefined, caption));
                     btns[0].classList.add("factory-sidebar-io-splitter-selected");
 
                     btns.forEach((btn1, idx1) => {
@@ -738,7 +827,7 @@ export abstract class FactoryNode {
         res.push(createElem("div", ["factory-sidebar-entry"], undefined, undefined, out_items) as HTMLDivElement);
 
         res.push(createElem("div", ["factory-sidebar-entry"], undefined, undefined, [0].map(() => {
-            let btn = createElem("button", ["factory-sidebar-button"], undefined, "Extract");
+            let btn = createElem("button", ["factory-context-button"], undefined, "Extract");
             btn.addEventListener("click", () => {
                 //console.log(extraction_ratios);
                 this.extract([extraction_ratios]);
@@ -749,7 +838,9 @@ export abstract class FactoryNode {
         return res;
 
     }
-    abstract create_context_menu(): Array<HTMLDivElement>;
+    create_context_entries(): Array<HTMLElement> {
+        return [];
+    }
 
     static merge(parts: Array<FactoryNode>): FactoryNode | undefined {
         //Convert parts to map
@@ -779,7 +870,7 @@ export abstract class FactoryNode {
                     })
                 })
 
-                let merged_node = (new (Object.getPrototypeOf(first_node).constructor)(first_node.host, undefined, first_node.x, first_node.y, total, first_node.resource)) as FactoryLogistic;
+                let merged_node = (new (Object.getPrototypeOf(first_node).constructor)(first_node.host, undefined, first_node.x, first_node.y, total, first_node.active, first_node.resource)) as FactoryLogistic;
 
                 merge_flow_in(parts.map(part => part.io[0]), merged_node.id);
                 merge_flow_out(parts.map(part => part.io[1]), merged_node.id);
@@ -801,7 +892,7 @@ export abstract class FactoryNode {
                 }
                 return false;
             })) {
-                let merged_node = new FactoryMachine(first_node.host, undefined, first_node.x, first_node.y, total, first_node.recipe);
+                let merged_node = new FactoryMachine(first_node.host, undefined, first_node.x, first_node.y, total, first_node.active, first_node.recipe);
 
                 merge_flow_in(parts.map(part => part.io[0]), merged_node.id);
                 merge_flow_out(parts.map(part => part.io[1]), merged_node.id);
@@ -821,8 +912,8 @@ export abstract class FactoryNode {
 export abstract class FactoryLogistic extends FactoryNode {
     resource: string;
 
-    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, resource: string) {
-        super(host, id, x, y, count);
+    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, active: boolean, resource: string) {
+        super(host, id, x, y, count, active);
 
         this.resource = resource;
     }
@@ -834,23 +925,24 @@ export abstract class FactoryLogistic extends FactoryNode {
             x: this.x,
             y: this.y,
             count: this.count,
+            active: this.active,
             resource: this.resource,
         };
     }
 
-    create_context_menu(): Array<HTMLDivElement> {
+    create_context_entries(): Array<HTMLElement> {
         return [];
     }
 
     split_nodes(sizes: Array<number>): Array<FactoryLogistic> {
-        return sizes.map((size, idx) => new (Object.getPrototypeOf(this).constructor)(this.host, undefined, this.x, this.y + 200 * idx, size, this.resource) as FactoryLogistic);
+        return sizes.map((size, idx) => new (Object.getPrototypeOf(this).constructor)(this.host, undefined, this.x, this.y + 200 * idx, size, this.active, this.resource) as FactoryLogistic);
     }
 
 };
 
 export class FactorySource extends FactoryLogistic {
-    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, resource: string) {
-        super(host, id, x, y, count, resource);
+    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, active: boolean, resource: string) {
+        super(host, id, x, y, count, active, resource);
 
         this.elem.classList.add("factory-source");
         this.elem_content.appendChild(createElem(
@@ -878,7 +970,7 @@ export class FactorySource extends FactoryLogistic {
         return "source";
     }
 
-    create_context_menu(): Array<HTMLDivElement> {
+    create_context_entries(): Array<HTMLElement> {
         return [];
     }
 
@@ -889,8 +981,8 @@ export class FactorySource extends FactoryLogistic {
 
 export class FactorySink extends FactoryLogistic {
 
-    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, resource: string) {
-        super(host, id, x, y, count, resource);
+    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, active: boolean, resource: string) {
+        super(host, id, x, y, count, active, resource);
 
         this.elem.classList.add("factory-sink");
         this.elem_content.appendChild(createElem(
@@ -918,7 +1010,7 @@ export class FactorySink extends FactoryLogistic {
         return "sink";
     }
 
-    create_context_menu(): Array<HTMLDivElement> {
+    create_context_entries(): Array<HTMLElement> {
         return [];
     }
 
@@ -928,8 +1020,8 @@ export class FactorySink extends FactoryLogistic {
 };
 
 export class FactoryHub extends FactoryLogistic {
-    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, resource: string) {
-        super(host, id, x, y, count, resource);
+    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, active: boolean, resource: string) {
+        super(host, id, x, y, count, active, resource);
 
         this.elem.classList.add("factory-hub");
         this.elem_content.appendChild(createElem(
@@ -977,12 +1069,16 @@ export class FactoryHub extends FactoryLogistic {
         return "hub";
     }
 
-    create_context_menu(): Array<HTMLDivElement> {
-        let entry_eliminate = createElem("div", ["factory-context-row"], undefined, "Eliminate") as HTMLDivElement;
-        entry_eliminate.addEventListener("click", () => {
-            this.host.htmls.context_menu!.innerHTML = "";
-            this.try_eliminate();
-        });
+    create_context_entries(): Array<HTMLElement> {
+        let entry_eliminate = createElem("div", ["factory-context-row"], undefined, undefined, [0].map(() => {
+            let btn = createElem("button", ["factory-context-button"], undefined, "Eliminate");
+            btn.addEventListener("click", () => {
+                this.host.htmls.context_menu!.innerHTML = "";
+                this.try_eliminate();
+            });
+            return btn;
+        }));
+
 
         return [
             entry_eliminate
@@ -997,8 +1093,8 @@ export class FactoryHub extends FactoryLogistic {
 export class FactoryMachine extends FactoryNode {
     recipe: string;
 
-    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, recipe: string) {
-        super(host, id, x, y, count);
+    constructor(host: FactoryTab, id: number | undefined, x: number, y: number, count: number, active: boolean, recipe: string) {
+        super(host, id, x, y, count, active);
 
         this.recipe = recipe;
 
@@ -1063,16 +1159,17 @@ export class FactoryMachine extends FactoryNode {
             x: this.x,
             y: this.y,
             recipe: this.recipe,
-            count: this.count
+            count: this.count,
+            active: this.active,
         };
     }
 
-    create_context_menu(): Array<HTMLDivElement> {
+    create_context_entries(): Array<HTMLElement> {
         return [];
     }
 
     split_nodes(sizes: Array<number>): Array<FactoryMachine> {
-        return sizes.map((size, idx) => new FactoryMachine(this.host, undefined, this.x, this.y + 200 * idx, size, this.recipe));
+        return sizes.map((size, idx) => new FactoryMachine(this.host, undefined, this.x, this.y + 200 * idx, size, this.active, this.recipe));
     }
 };
 
@@ -1084,13 +1181,14 @@ export class FactoryComposite extends FactoryNode {
     ratio_raw: [{ [resource: string]: number }, { [resource: string]: number }];
     ratio_data: [Map<string, number>, Map<string, number>];
 
-    constructor(host: FactoryTab, id: FactoryNodeID | undefined, x: number, y: number, count: number, name: string, inner_data: any, inner_hubs: any, ratios: [{ [resource: string]: number }, { [resource: string]: number }] | string) {
+    constructor(host: FactoryTab, id: FactoryNodeID | undefined, x: number, y: number, count: number, active: boolean, name: string, inner_data: any, inner_hubs: any, ratios: [{ [resource: string]: number }, { [resource: string]: number }] | string) {
         super(
             host,
             id,
             x,
             y,
-            count
+            count,
+            active
         );
 
         this.name = name;
@@ -1121,7 +1219,7 @@ export class FactoryComposite extends FactoryNode {
                 }
             });
         }
-        if(this.inner_data !== undefined) {
+        if (this.inner_data !== undefined) {
             v2_v3_upgrade(this.inner_data);
         }
 
@@ -1159,6 +1257,7 @@ export class FactoryComposite extends FactoryNode {
             undefined,
             this.x, this.y + 200 * sidx,
             this.count * size / sum,
+            this.active,
             this.name + "_" + sidx.toString(),
             this.inner_data,
             this.inner_hubs,
@@ -1179,6 +1278,7 @@ export class FactoryComposite extends FactoryNode {
             x: this.x,
             y: this.y,
             count: this.count,
+            active: this.active,
             name: this.name,
 
             inner_data: this.inner_data,
@@ -1187,12 +1287,15 @@ export class FactoryComposite extends FactoryNode {
         };
     }
 
-    create_context_menu(): Array<HTMLDivElement> {
-        let entry_unpack = createElem("div", ["factory-context-row"], undefined, "Unpack") as HTMLDivElement;
-        entry_unpack.addEventListener("click", () => {
-            this.host.htmls.context_menu!.innerHTML = "";
-            this.unpack();
-        });
+    create_context_entries(): Array<HTMLElement> {
+        let entry_unpack = createElem("div", ["factory-context-row"], undefined, undefined, [0].map(() => {
+            let btn = createElem("button", ["factory-context-button"], undefined, "Unpack");
+            btn.addEventListener("click", () => {
+                this.host.htmls.context_menu!.innerHTML = "";
+                this.unpack();
+            });
+            return btn;
+        }));
 
         return [
             entry_unpack
@@ -1231,7 +1334,7 @@ export class FactoryComposite extends FactoryNode {
         let hubs: [{ [resource: string]: FactoryNodeID }, { [resource: string]: FactoryNodeID }] = [{}, {}];
         net_io.forEach((side, sidx) => {
             for (const [resource, count] of Object.entries(side)) {
-                let hub = new FactoryHub(host, undefined, 0, 0, count, resource);
+                let hub = new FactoryHub(host, undefined, 0, 0, count, true, resource);
                 all_parts.push(hub);
                 hubs[sidx][resource] = hub.id;
             }
@@ -1241,6 +1344,7 @@ export class FactoryComposite extends FactoryNode {
         let res = new FactoryComposite(
             parts[0].host, undefined,
             parts[0].x, parts[0].y, 1,
+            true,
             "Unnamed", undefined, undefined, net_io);
 
         //Re-connect internal nodes to hubs
@@ -1333,7 +1437,7 @@ export class FactoryComposite extends FactoryNode {
         this.host.remove_node(this.id);
         this.host.clear_selected_nodes();
         new_nodes.forEach(node => {
-            this.host.add_selected_node(node, true);
+            this.host.add_selected_node(node, "append");
         });
     }
 }
