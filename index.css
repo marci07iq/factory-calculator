@@ -357,3 +357,11 @@ body {
     text-align: center;
     font-size: 1.2em;
 }
+
+.factory-node-inactive {
+    filter: grayscale(50%) brightness(50%);
+}
+
+.factory-flow-inactive {
+    filter: grayscale(50%) brightness(50%);
+}

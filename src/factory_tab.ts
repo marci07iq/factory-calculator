@@ -153,7 +153,7 @@ export class FactoryTab {
             }
             if (this.drag_mode == "node") {
                 this.selected_nodes.forEach((node) => {
-                    node.set_position(node.x + dx / this.zoom, node.y + dy / this.zoom);
+                    node.update_element(node.x + dx / this.zoom, node.y + dy / this.zoom, undefined);
                 })
             }
         });
@@ -377,18 +377,6 @@ export function createTabSolution(solution: SolverResult): FactoryTab | undefine
 
             //console.log(print_recipe(recipe_key, recipe_cnt));
 
-            /*
-            let net_in: NetIO = new Map<string, number>();
-            let net_out: NetIO = new Map<string, number>();
-
-            FACTORY_DATA.productionRecipes[recipe_key].ingredients.forEach((ingredient) => {
-                net_in.set(ingredient.itemClass, ingredient.quantity * recipe_cnt);
-            });
-
-            FACTORY_DATA.productionRecipes[recipe_key].products.forEach((product) => {
-                net_out.set(product.itemClass, product.quantity * recipe_cnt);
-            });*/
-
             if (recipe_cnt > 1e-6) {
                 let node = new FactoryMachine(
                     res_factory,
@@ -535,7 +523,7 @@ export function createTabSolution(solution: SolverResult): FactoryTab | undefine
         }
 
         res_factory.elems.forEach((val, key) => {
-            val.set_position(layers.get(val.id)!.at(0)! * spacing_x, layers.get(val.id)!.at(1)! * spacing_y * 3);
+            val.update_element(layers.get(val.id)!.at(0)! * spacing_x, layers.get(val.id)!.at(1)! * spacing_y * 3, undefined);
         });
 
         return res_factory;

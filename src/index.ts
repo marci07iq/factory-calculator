@@ -98,25 +98,6 @@ export class FactoryWindow {
 
         //No tabs: create default
         if (this.tabs.length == 0) {
-            //Set up limits
-            /*let map_limits = new Map<string, [number, number]>();
-            for (const [resource, desc] of Object.entries(FACTORY_DATA.resources)) {
-                map_limits.set(resource, [NaN, desc.maxExtraction ?? NaN]);
-            }
-            map_limits.set('Desc_Water_C', [NaN, NaN]);
-
-            //Solve
-            let new_tab = createTabSolution(solve_factory(
-                map_limits,
-                new Map<string, [number, number]>([
-                    ["Recipe_NuclearReactorUranium", [50.4, NaN]]
-                ]),
-                new Map([]),
-                "max_points"));
-
-            if (new_tab !== undefined) {
-                this.addTab(new_tab);
-            }*/
             this.newTab();
         }
     }
@@ -250,4 +231,8 @@ window.addEventListener("load", () => {
     let main = new FactoryWindow();
     window.factory = main;
     document.body.appendChild(main.elem_root);
+
+    window.onbeforeunload = () => {
+        return "Make sure you saved all your work";
+    }
 }); 

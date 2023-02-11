@@ -2,11 +2,13 @@
 
 Click [here](https://marci07iq.github.io/factory-calculator/) to open latest stable deployment.
 
-A production calculator and factory planner for Satisfactory
+A production calculator and factory planner for Satisfactory.
+
+This tool is intended to become general purpose, but it is currently optimized to solve the end game factory (maximal Awesome points).
 
 ## Features
 
-- Linear progamming solver (note: currently only available from code, defaults to max Awesome Points)
+- Linear progamming solver
 - Fully re-arrangable flow graph editor
 - Group multiple nodes into one large "factory"
 - Split nodes to show multiple facilities producing the same product
@@ -45,6 +47,20 @@ For the best experience, choose one in/output resource type that you would like 
 
 Experiment freely. The graph is not saved until you click the save button. Simply reloading the tab will undo any unsaved progress.
 
+## Solver
+
+To use the linear programming solver to create a factory, click "New tab". In the solver setup, you have three columns:
+- The input column describes the resources you have available. Use min to indicate that a given amount must be consumed by the factory. Use max to indicate the maximum available. Any resouce not specific in the inputs will not be used.
+- The output column is similairly for the resources the factory needs to produce.
+- The intermediate recipe column shows specific internal crafting processes that must be part of the factory. Note: the numbers are in recipe/min. To ensure the maximum amount of uranium power generation, choose `Uranium power`, mminimum 50.4.
+- At the bottom, you can select to maximize Awesome points, or minimize waste byproducts.
+
+## Maximal factory example
+
+- Set inputs to map limits
+- Set intermediate to minimum 50.4 `Uranium power` (number valid as of Update 7)
+- Select the maximum awesome points radio button.
+
 # Development
 
 - Download code
@@ -64,6 +80,5 @@ It should be reasonalby easy to adapt the software to other production based gam
 
 ## TODOs
 
-- Add UI to set up LP solver
-- Make UI look nice
 - Adopt a game-neutral format for recipe input, to make chaning games easier
+- Keep position when unpacking

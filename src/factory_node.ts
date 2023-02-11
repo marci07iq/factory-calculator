@@ -1,4 +1,3 @@
-import { throws } from "assert";
 import { FACTORY_DATA } from "./factory_data";
 import { FactoryTab } from "./factory_tab";
 import { num_to_str } from "./helper";
@@ -203,65 +202,6 @@ export class ProcessingIO extends Map<string, FlowViewItem>{
     }
 };
 
-/*function collapse_flows(parts: Array<FlowLine>): FlowView {
-    let res: FlowView = new Map<string, FlowViewItem>();
-
-    parts.forEach((entry) => {
-        if (!res.has(entry.resource)) {
-            res.set(entry.resource, {
-                total: 0,
-                parts: []
-            });
-        }
-        res.get(entry.resource)!.total += entry.rate;
-        res.get(entry.resource)!.parts.push({
-            rate: entry.rate,
-            from: entry.from,
-            to: entry.to,
-        });
-    });
-
-    return res;
-}*/
-
-/*function sum_flow(parts: Array<Array<FlowLine>>): Array<FlowLine> {
-    let res: Array<FlowLine> = new Array<FlowLine>();
-
-    parts.forEach((part) => {
-        part.forEach((entry) => {
-            if (res.every((res_entry) => {
-                if (res_entry.to == entry.to && res_entry.resource == entry.resource) {
-                    entry.rate += res_entry.rate;
-                    return false;
-                }
-                return true;
-            })) {
-                res.push(new FlowLine(
-                    entry.host,
-                    entry.resource,
-                    entry.rate,
-                    entry.from,
-                    entry.to,
-                ));
-            }
-        });
-    });
-
-    return res;
-}
-
-function mul_flow(io: Array<FlowLine>, num: number): Array<FlowLine> {
-    return io.map((entry) => {
-        return new FlowLine(
-            entry.host,
-            entry.resource,
-            entry.rate * num,
-            entry.from,
-            entry.to,
-        );
-    });
-}*/
-
 function merge_flow_in(parts: Array<ProcessingIO>, new_to: FactoryNodeID) {
     //type: {other: total}
     let flow_sum = new Map<string, Map<number, number>>();
@@ -354,8 +294,6 @@ export abstract class FactoryNode {
         this.host = host;
         this.io = [new ProcessingIO(), new ProcessingIO()];
 
-        this.active = active;
-
         this.count = count;
 
         this.elem = createElem(
@@ -368,7 +306,7 @@ export abstract class FactoryNode {
                 this.elem_content = createElem("div", ["factory-node-content"]) as HTMLDivElement,
             ]
         ) as HTMLDivElement;
-        this.set_position(x, y);
+        this.update_element(x, y, active);
 
         let down_x, down_y;
 
@@ -425,9 +363,21 @@ export abstract class FactoryNode {
         this.elem.setAttribute("data-id", this.id.toString());
     }
 
-    set_position(x: number, y: number) {
-        this.x = x;
-        this.y = y;
+    update_element(x: number | undefined, y: number | undefined, active: boolean | undefined) {
+        if(x !== undefined) {
+            this.x = x;
+        }
+        if(y !== undefined) {
+            this.y = y;
+        }
+        if(active !== undefined) {
+            this.active = active;
+            if(this.active) {
+                this.elem.classList.remove("factory-node-inactive");
+            } else {
+                this.elem.classList.add("factory-node-inactive");
+            }
+        }
         this.elem.style.left = this.x + "px";
         this.elem.style.top = this.y + "px";
 
@@ -435,7 +385,6 @@ export abstract class FactoryNode {
             flow.update_position();
         }));
     }
-    abstract update_element();
 
     //Get the effective "recipe" of the node, that count measures
     abstract ratios(): [Map<string, number>, Map<string, number>];
@@ -597,68 +546,12 @@ export abstract class FactoryNode {
 
         this.host.remove_node(this.id);
         new_nodes.forEach(node => {
-            node.set_position(node.x, node.y);
-            node.update_element();
+            node.update_element(undefined, undefined, undefined);
             if (node instanceof FactoryHub) {
                 //node.try_eliminate();
             }
         });
     }
-
-    /*split(parts: [Map<string, Array<number>>, Map<string, Array<number>>]): Array<FactoryNode> {
-        let dst: SplitResult = {
-            mapping: new Map<FactoryNodeID, Array<FactoryNodeID>>()
-        };
-
-        let res: Array<FactoryNode> = [];
-
-        this.split_inner(parts, dst);
-
-        //For all old nodes
-        dst.mapping.forEach((new_ids, old_id) => {
-            //For all new children
-            new_ids.forEach((new_id, split_idx) => {
-                //For all old edges, insert a new one
-
-                //Flows from old node:
-                this.host.elems.get(old_id)![1].forEachFlat(flow => {
-                    let new_to = dst.mapping.get(flow.to)?.at(split_idx) ?? flow.to;
-
-                    new FlowLine(
-                        this.host,
-                        flow.resource,
-                        flow.rate * parts[split_idx],
-                        new_id,
-                        new_to
-                    );
-
-                });
-
-                //Flows into old node:
-                this.host.elems.get(old_id)![0].forEachFlat(flow => {
-                    if (!dst.mapping.has(flow.from)) {
-                        let new_from = flow.from;
-
-                        new FlowLine(
-                            this.host,
-                            flow.resource,
-                            flow.rate * parts[split_idx],
-                            new_from,
-                            new_id,
-                        );
-                    }
-                });
-
-            })
-        });
-
-        //Delete all split nodes
-        dst.mapping.forEach((new_ids, old_id) => {
-            this.host.remove_node(old_id);
-        });
-
-        return res;
-    }*/
 
     abstract get_name(): string;
     abstract get_type(): FactoryNodeType;
@@ -720,12 +613,32 @@ export abstract class FactoryNode {
         if (parts.length >= 1) {
 
             if (parts.length == 1) {
-                return parts[0].create_context_entries();
+                res = parts[0].create_context_entries();
             } else {
                 res.push(createElem("div", ["factory-context-row"], undefined, undefined, [0].map(() => {
                     let btn = createElem("button", ["factory-context-button"], undefined, "Merge");
                     btn.addEventListener("click", () => {
                         FactoryNode.merge(parts);
+                    })
+                    return btn;
+                })));
+            }
+
+            if (!parts.every(part => !part.active)) {
+                res.push(createElem("div", ["factory-context-row"], undefined, undefined, [0].map(() => {
+                    let btn = createElem("button", ["factory-context-button"], undefined, "Hide");
+                    btn.addEventListener("click", () => {
+                        FactoryNode.activate(parts, false);
+                    })
+                    return btn;
+                })));
+            }
+
+            if (!parts.every(part => part.active)) {
+                res.push(createElem("div", ["factory-context-row"], undefined, undefined, [0].map(() => {
+                    let btn = createElem("button", ["factory-context-button"], undefined, "Show");
+                    btn.addEventListener("click", () => {
+                        FactoryNode.activate(parts, true);
                     })
                     return btn;
                 })));
@@ -843,6 +756,8 @@ export abstract class FactoryNode {
     }
 
     static merge(parts: Array<FactoryNode>): FactoryNode | undefined {
+        parts[0].host.htmls.context_menu!.innerHTML = "";
+
         //Convert parts to map
         let part_map = new Map<FactoryNodeID, FactoryNode>();
         parts.forEach(part => {
@@ -863,7 +778,7 @@ export abstract class FactoryNode {
             })) {
                 //Remove internal stuff
                 parts.forEach(part => {
-                    part.io[1].get(first_node.resource)!.parts.forEach(flow => {
+                    part.io[1].get(first_node.resource)?.parts.forEach(flow => {
                         if (part_map.has(flow.to)) {
                             total -= flow.rate;
                         }
@@ -906,6 +821,16 @@ export abstract class FactoryNode {
         }
 
         return FactoryComposite.pack(parts);
+    }
+
+    static activate(parts: Array<FactoryNode>, active: boolean) {
+        parts[0].host.htmls.context_menu!.innerHTML = "";
+
+        parts.forEach(part => {
+            part.update_element(undefined, undefined, active);
+        });
+
+        parts[0].host.update_sidebar();
     }
 };
 
@@ -959,10 +884,6 @@ export class FactorySource extends FactoryLogistic {
         ));
     }
 
-    update_element() {
-        this.elem_content.children[1].textContent = num_to_str(this.count) + " x " + FACTORY_DATA.items[this.resource].name;
-    }
-
     get_name(): string {
         return `Source ${FACTORY_DATA.items[this.resource].name}`;
     }
@@ -999,10 +920,6 @@ export class FactorySink extends FactoryLogistic {
         ));
     }
 
-    update_element() {
-        this.elem_content.children[1].textContent = num_to_str(this.count) + " x " + FACTORY_DATA.items[this.resource].name;
-    }
-
     get_name(): string {
         return `Sink ${FACTORY_DATA.items[this.resource].name}`;
     }
@@ -1030,10 +947,6 @@ export class FactoryHub extends FactoryLogistic {
             undefined,
             num_to_str(this.count) + " x " + FACTORY_DATA.items[this.resource].name
         ));
-    }
-
-    update_element() {
-        this.elem_content.children[0].textContent = num_to_str(this.count) + " x " + FACTORY_DATA.items[this.resource].name;
     }
 
     try_eliminate() {
@@ -1113,11 +1026,6 @@ export class FactoryMachine extends FactoryNode {
         ));
     }
 
-    update_element() {
-        this.elem_content.children[0].textContent = FACTORY_DATA.productionRecipes[this.recipe].name;
-        this.elem_content.children[1].textContent = num_to_str(this.count * FACTORY_DATA.productionRecipes[this.recipe].craftTime / 60) + " x " + FACTORY_DATA.buildables[FACTORY_DATA.productionRecipes[this.recipe].producedIn].name;
-    }
-
     ratios(): [Map<string, number>, Map<string, number>] {
         return [new Map(
             FACTORY_DATA.productionRecipes[this.recipe].ingredients.map(elem => [elem.itemClass, elem.quantity])
@@ -1125,25 +1033,6 @@ export class FactoryMachine extends FactoryNode {
             FACTORY_DATA.productionRecipes[this.recipe].products.map(elem => [elem.itemClass, elem.quantity])
         )];
     }
-    /*split_inner(parts: Array<number>, dst: SplitResult) {
-        let sum = parts.reduce((cumsum, val) => cumsum + val, 0);
-
-        if (dst.mapping.has(this.id)) throw Error("assert");
-        dst.mapping.set(this.id, []);
-
-        parts.forEach((part) => {
-            let new_node = new FactoryMachine(
-                this.host,
-                undefined,
-                this.x,
-                this.y,
-                this.recipe,
-                this.count * part / sum
-            );
-
-            dst.mapping.get(this.id)!.push(new_node.id);
-        });
-    }*/
 
     get_name(): string {
         return FACTORY_DATA.productionRecipes[this.recipe].name;
@@ -1239,10 +1128,6 @@ export class FactoryComposite extends FactoryNode {
         in_elem.onchange = (ev) => {
             this.name = in_elem.value
         };
-    }
-
-    update_element() {
-
     }
 
     ratios(): [Map<string, number>, Map<string, number>] {
@@ -1399,7 +1284,7 @@ export class FactoryComposite extends FactoryNode {
         let remap = new Map<FactoryNodeID, FactoryNodeID>();
         let new_nodes = this.host.load(this.inner_data, this.count, remap);
         new_nodes.forEach(node => {
-            node.set_position(this.x, this.y);
+            node.update_element(this.x, this.y, undefined);
         });
 
         //Parse IO hubs
