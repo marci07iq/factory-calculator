@@ -2,7 +2,7 @@ import { FactoryWindow } from "./index";
 import { FACTORY_DATA } from "./factory_data";
 import { createTabSolution } from "./factory_tab";
 import { SolverOperation, solve_factory } from "./solver";
-import { createElem } from "./utils";
+import { createElem, Dropdown, DropdownEntry } from "./utils";
 import { create } from "domain";
 
 class SolverConfigEntry {
@@ -78,9 +78,9 @@ export class SolverConfig {
         let elem_recipe: HTMLElement;
         let elem_out: HTMLElement;
 
-        let select_in: HTMLSelectElement;
-        let select_recipe: HTMLSelectElement;
-        let select_out: HTMLSelectElement;
+        let select_in: Dropdown;
+        let select_recipe: Dropdown;
+        let select_out: Dropdown;
 
         let btn_select_in: HTMLButtonElement;
         let btn_select_recipe: HTMLButtonElement;
@@ -90,46 +90,54 @@ export class SolverConfig {
         let elem_ok: HTMLInputElement;
 
         let generate_options = (data) => {
-            let res: Array<HTMLOptionElement> = [];
+            let res: Array<DropdownEntry> = [];
             for (const [key, value] of Object.entries(data)) {
-                res.push(createElem("option", [], new Map([["value", key]]), (value as any).name) as HTMLOptionElement);
+                let name = (value as any).name as string;
+                res.push({
+                    key: key,
+                    name: name,
+                    elem: createElem("tr", [], undefined, undefined, [
+                        createElem("td", [], undefined, name)
+                    ]) as HTMLTableRowElement
+                });
             }
+            res.sort((a, b) => {
+                return a.name.localeCompare(b.name);
+            });
             return res;
-        }
+        };
 
         this.elem = createElem("form", ["factory-solver"], new Map([["action", "javascript:void(0);"]]), undefined, [
-            createElem("div", ["factory-solver-ios"], undefined, undefined, [
-                createElem("div", ["factory-solver-io", "factory-solver-in"], undefined, undefined, [
-                    createElem("div", ["factory-solver-title"], undefined, "Inputs"),
-                    createElem("div", undefined, undefined, undefined, [
-                        select_in = createElem("select", ["factory-solver-add", "factory-context-button"], undefined, undefined, generate_options(FACTORY_DATA.items)) as HTMLSelectElement,
-                        btn_select_in = createElem("button", ["factory-menu-button", "factory-context-button"], new Map([["type", "button"]]), "+") as HTMLButtonElement,
-                    ]),
-                    btn_lims = createElem("button", ["factory-menu-button", "factory-context-button"], new Map([["type", "button"]]), "Use map limits") as HTMLButtonElement,
-                    elem_in = createElem("table")
+            createElem("div", ["factory-solver-io", "factory-solver-in"], undefined, undefined, [
+                createElem("div", ["factory-solver-title"], undefined, "Inputs"),
+                createElem("div", ["factory-solver-io-search"], undefined, undefined, [
+                    (select_in = new Dropdown(generate_options(FACTORY_DATA.items))).elem_root,
+                    btn_select_in = createElem("button", ["factory-menu-button", "factory-context-button", "factory-solver-search-button"], new Map([["type", "button"]]), "+") as HTMLButtonElement,
                 ]),
-                createElem("div", ["factory-solver-io", "factory-solver-recipe"], undefined, undefined, [
-                    createElem("div", ["factory-solver-title"], undefined, "Intermedaite steps"),
-                    createElem("div", undefined, undefined, undefined, [
-                        select_recipe = createElem("select", ["factory-solver-add", "factory-context-button"], undefined, undefined, generate_options(FACTORY_DATA.productionRecipes)) as HTMLSelectElement,
-                        btn_select_recipe = createElem("button", ["factory-menu-button", "factory-context-button"], new Map([["type", "button"]]), "+") as HTMLButtonElement,
-                    ]),
-                    elem_recipe = createElem("table")
+                btn_lims = createElem("button", ["factory-menu-button", "factory-context-button"], new Map([["type", "button"]]), "Use map limits") as HTMLButtonElement,
+                elem_in = createElem("table")
+            ]),
+            createElem("div", ["factory-solver-io", "factory-solver-recipe"], undefined, undefined, [
+                createElem("div", ["factory-solver-title"], undefined, "Intermedaite steps"),
+                createElem("div", ["factory-solver-io-search"], undefined, undefined, [
+                    (select_recipe = new Dropdown(generate_options(FACTORY_DATA.productionRecipes))).elem_root,
+                    btn_select_recipe = createElem("button", ["factory-menu-button", "factory-context-button", "factory-solver-search-button"], new Map([["type", "button"]]), "+") as HTMLButtonElement,
                 ]),
-                createElem("div", ["factory-solver-io", "factory-solver-out"], undefined, undefined, [
-                    createElem("div", ["factory-solver-title"], undefined, "Outputs"),
-                    createElem("div", undefined, undefined, undefined, [
-                        select_out = createElem("select", ["factory-solver-add", "factory-context-button"], undefined, undefined, generate_options(FACTORY_DATA.items)) as HTMLSelectElement,
-                        btn_select_out = createElem("button", ["factory-menu-button", "factory-context-button"], new Map([["type", "button"]]), "+") as HTMLButtonElement,
-                    ]),
-                    elem_out = createElem("table")
+                elem_recipe = createElem("table")
+            ]),
+            createElem("div", ["factory-solver-io", "factory-solver-out"], undefined, undefined, [
+                createElem("div", ["factory-solver-title"], undefined, "Outputs"),
+                createElem("div", ["factory-solver-io-search"], undefined, undefined, [
+                    (select_out = new Dropdown(generate_options(FACTORY_DATA.items))).elem_root,
+                    btn_select_out = createElem("button", ["factory-menu-button", "factory-context-button", "factory-solver-search-button"], new Map([["type", "button"]]), "+") as HTMLButtonElement,
                 ]),
+                elem_out = createElem("table")
             ]),
             createElem("div", ["factory-solver-ctrls"], undefined, undefined, [
                 this.elem_goal = createElem("table", ["factory-solver-io", "factory-solver-goal"], undefined, undefined, [
                     createElem("tr", [], undefined, undefined, [
                         createElem("td", [], undefined, undefined, [
-                            createElem("input", [], new Map([["type", "radio"], ["name", "goal"], ["value", "max_points"]]))
+                            createElem("input", [], new Map([["type", "radio"], ["name", "goal"], ["value", "max_points"], ["id", "max_points"]]))
                         ]),
                         createElem("td", [], undefined, undefined, [
                             createElem("label", [], new Map([["for", "max_points"]]), "Max Awesome points")
@@ -137,7 +145,7 @@ export class SolverConfig {
                     ]),
                     createElem("tr", [], undefined, undefined, [
                         createElem("td", [], undefined, undefined, [
-                            createElem("input", [], new Map([["type", "radio"], ["name", "goal"], ["value", "min_waste"]]))
+                            createElem("input", [], new Map([["type", "radio"], ["name", "goal"], ["value", "min_waste"], ["id", "min_waste"]]))
                         ]),
                         createElem("td", [], undefined, undefined, [
                             createElem("label", [], new Map([["for", "min_points"]]), "Minimal waste")
@@ -148,6 +156,7 @@ export class SolverConfig {
                 elem_ok = createElem("button", ["factory-menu-button", "factory-context-button"], new Map([["type", "submit"]]), "Solve") as HTMLInputElement,
             ]),
         ]);
+       
 
         this.elem_iro = [elem_in, elem_recipe, elem_out];
         this.prod_iro = [new Map(), new Map(), new Map()];

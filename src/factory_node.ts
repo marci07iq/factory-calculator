@@ -8,7 +8,7 @@ export type FactoryNodeID = number;
 export class FlowLine {
     readonly host: FactoryTab;
 
-    readonly active: boolean;
+    active: boolean;
 
     readonly resource: string;
     readonly rate: number;
@@ -99,9 +99,9 @@ export class FlowLine {
         // angle
         const angle = Math.atan2((y1 - y2), (x1 - x2)) * (180 / Math.PI);
 
-        const active = this.host.elems.get(this.from)!.active && this.host.elems.get(this.to)!.active;
+        this.active = this.host.elems.get(this.from)!.active && this.host.elems.get(this.to)!.active;
 
-        if (active) {
+        if (this.active) {
             this.elem.classList.remove("factory-flow-inactive");
         } else {
             this.elem.classList.add("factory-flow-inactive")
@@ -719,6 +719,10 @@ export abstract class FactoryNode {
                             count_elem.innerText = "[" + num_to_str(cnt_min) + ", " + num_to_str(cnt_max) + "] / " + num_to_str(flows.total);
                         })
                     });
+
+                    if(flows.parts.length == 1) {
+                        btns[1].click();
+                    }
 
                     return createElem("tr", ["factory-sidebar-io-row"], undefined, undefined, [
                         createElem("td", ["factory-sidebar-io-cell"], new Map([["title", this.host.elems.get(io_idx == 0 ? flow.from : flow.to)!.get_name()]]), num_to_str(flow.rate)),

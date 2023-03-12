@@ -1,8 +1,57 @@
+:root {
+    --main-bg: #000000;
+    --main-input: #2e2e2e;
+    --main-hover: #535353;
+    --main-focus: #70d9e7;
+    --main-text: #ffffff;
+    --main-border-1: #808080;
+    --main-border-2: #d0d0d0;
+}
+
+* {
+    color: var(--main-text);
+    box-sizing: border-box;
+}
+
 body {
     min-height: 100vh;
     padding: 0;
     margin: 0;
     font-family: Helvetica, Arial, Sans-Serif;
+}
+
+button,
+input,
+textarea,
+select {
+    border: none;
+    background-color: var(--main-input);
+    padding: 4px;
+    border: 2px solid;
+    border-color: var(--main-border-2) var(--main-border-1) var(--main-border-1) var(--main-border-2);
+}
+
+button:hover,
+input:hover,
+textarea:hover,
+select:hover {
+    background-color: var(--main-hover);
+}
+
+button:focus,
+input:focus,
+textarea:focus,
+select:focus {
+    background-color: var(--main-hover);
+    border-color: var(--main-focus);
+    outline: none;
+}
+
+table,
+tr,
+td {
+    padding: 0;
+    margin: 0;
 }
 
 .factory-root {
@@ -69,7 +118,6 @@ body {
 
 .factory-flow-text {
     pointer-events: auto;
-    color: white;
     position: absolute;
     text-align: center;
 }
@@ -100,7 +148,6 @@ body {
 .factory-node-content {
     padding: 10px;
     background: #323232;
-    color: white;
 }
 
 .factory-machine .factory-node-header {
@@ -149,7 +196,6 @@ body {
 }
 
 .factory-composite-name {
-    color: white;
     width: 100px;
     background: none;
     border: none;
@@ -194,21 +240,17 @@ body {
     border-radius: 16px;
 }
 
-.factory-tab-sidebar-content * {
-    color: white;
-}
+.factory-tab-sidebar-content * {}
 
 .factory-context-button {
-    background-color: #2e2e2e;
+    /*background-color: #2e2e2e;*/
 }
 
 .factory-context-button:hover {
-    background-color: #535353;
+    /*background-color: #535353;*/
 }
 
-.factory-context-menu * {
-    color: white;
-}
+.factory-context-menu * {}
 
 .factory-context-menu {
     position: absolute;
@@ -218,7 +260,9 @@ body {
     padding: 8px;
 }
 
-.factory-context-row {}
+.factory-context-row {
+    padding: 2px;
+}
 
 .factory-sidebar-io {
     padding-top: 8px;
@@ -226,6 +270,7 @@ body {
 
 .factory-sidebar-io-flows {
     padding-left: 8px;
+    width: 100%;
 }
 
 .factory-sidebar-io-resource-cnt {
@@ -250,6 +295,16 @@ body {
     float: right;
 }
 
+.factory-sidebar-io-cell:nth-child(1) {
+    width: 100%;
+}
+
+.factory-sidebar-io-splitter {
+    width: 24px;
+    height: 24px;
+    border: none;
+}
+
 .factory-ribbon {
     padding-top: 8px;
     padding-left: 50px;
@@ -267,6 +322,7 @@ body {
     padding-top: 8px;
     padding: 8px 20px 8px 20px;
     margin-right: 4px;
+    color: black;
 }
 
 .factory-ribbon-button:hover {
@@ -305,16 +361,14 @@ body {
     border: 2px solid white;
     border-radius: 16px;
     border-top-right-radius: 0px;
-    overflow: clip;
+    overflow: auto;
     padding: 16px;
     padding-top: 32px;
     box-sizing: border-box;
     margin: 50px;
 }
 
-.factory-popup-main * {
-    color: white;
-}
+.factory-popup-main * {}
 
 .factory-popup-close {
     position: absolute;
@@ -330,23 +384,26 @@ body {
     background: rgba(255, 255, 255, 0.5);
 }
 
-.factory-textbox {
-    background-color: #2e2e2e;
-}
+.factory-textbox {}
 
-.factory-textbox:hover {
-    background-color: #535353;
-}
+.factory-textbox:hover {}
 
-.factory-solver-ios {
+.factory-solver {
     display: flex;
+    flex-wrap: wrap;
+}
+
+.factory-solver>div {
+    flex: 1 0;
+    min-width: 300px;
+    max-width: 400px;
+    padding: 8px;
+    margin-bottom: 30px;
 }
 
 .factory-solver-io {
-    flex: 1;
     flex-direction: column;
     display: flex;
-    max-width: 400px;
 }
 
 .factory-solver-io-input {
@@ -364,4 +421,67 @@ body {
 
 .factory-flow-inactive {
     filter: grayscale(50%) brightness(50%);
+}
+
+.factory-solver-io-search {
+    display: flex;
+    border: 2px solid;
+    border-color: var(--main-border-2) var(--main-border-1) var(--main-border-1) var(--main-border-2);
+}
+
+.factory-solver-io-search:focus-within {
+    border-color: var(--main-focus);
+}
+
+.factory-solver-io-search * {
+    border: none;
+}
+
+.factory-solver-io-search>.dropdown-main {
+    flex: 1;
+}
+
+.dropdown-list {
+    width: 100%;
+}
+
+.dropdown-selected {
+    width: 100%;
+    border-spacing: 0px 0px;
+}
+
+.dropdown-entry {
+    width: 100%;
+}
+
+.dropdown-search {
+    width: 100%;
+}
+
+.dropdown-entry:hover {
+    background: #303030;
+}
+
+.dropdown-list-host-inner {
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    position: absolute;
+    z-index: 1;
+    background: #202020;
+    border-spacing: 0px 2px;
+}
+
+.dropdown-list-host {
+    position: relative;
+    width: 100%;
+}
+
+.factory-solver-io-search .dropdown-toprow {
+    height: 32px;
+}
+
+.factory-solver-search-button {
+    width: 32px;
+    height: 32px;
 }
