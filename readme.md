@@ -1,5 +1,7 @@
 # Production calculator for Satisfactory
 
+![UI](https://github.com/marci07iq/factory-calculator/blob/master/ui.jpg?raw=true)
+
 Click [here](https://marci07iq.github.io/factory-calculator/) to open latest stable deployment.
 
 A production calculator and factory planner for Satisfactory.
@@ -27,10 +29,11 @@ This tool is intended to become general purpose, but it is currently optimized t
 - Sidebar (single element)
   - Displays all the inputs and outputs
   - Make hub button: merges all flows of that type into a single outgoing line, to a distribution hub
-  - Split node (see below)
+  -Extract (Splitting, see below)
 - Sidebar (multiple elements)
   - If identical types, trivially merge
   - If different types, merge into composite factory node
+  - Shoe/hide elements (e.g. used to mark as complete)
 
 ## Splitting
 
@@ -50,10 +53,11 @@ Experiment freely. The graph is not saved until you click the save button. Simpl
 ## Solver
 
 To use the linear programming solver to create a factory, click "New tab". In the solver setup, you have three columns:
-- The input column describes the resources you have available. Use min to indicate that a given amount must be consumed by the factory. Use max to indicate the maximum available. Any resouce not specific in the inputs will not be used.
+- The input column describes the resources you have available. Use min to indicate that a given amount must be consumed by the factory. Use max to indicate the maximum available. Any resouce not specified in the inputs will not be used.
 - The output column is similairly for the resources the factory needs to produce.
-- The intermediate recipe column shows specific internal crafting processes that must be part of the factory. Note: the numbers are in recipe/min. To ensure the maximum amount of uranium power generation, choose `Uranium power`, mminimum 50.4.
+- The intermediate recipe column shows specific internal crafting processes that must be part of the factory. Note: the numbers are in recipe/min. To ensure the maximum amount of uranium power generation, choose `Uranium power`, minimum 50.4.
 - At the bottom, you can select to maximize Awesome points, or minimize waste byproducts.
+- The solver is unable to produce byproducts that can not be sunk. If there is a byproduct you don't mind the factory producing, set it as an output with minimum 0.
 
 ## Maximal factory example
 
@@ -82,3 +86,4 @@ It should be reasonalby easy to adapt the software to other production based gam
 
 - Adopt a game-neutral format for recipe input, to make chaning games easier
 - Keep position when unpacking
+- Icons for items
